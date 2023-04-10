@@ -4,19 +4,24 @@ entrypoints Program ;
 
 ProgramText.   Program ::= [Top] ;
 
-TopDecl.       Top ::= Decl ;
+-- TopDecl.       Top ::= Decl ;
 TopDef.        Top ::= Def ;
 
 
-Declaration.   Decl ::= Ident "::" Type ;
-Definition.	   Def ::= Ident  [Arg]  "=" Expr ;
+-- Declaration.   Decl ::= Ident "::" Type ;
+-- Definition.	   Def ::= [Ident] "=" Expr ;
+DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
+
+
+OptionalTypeAnnotation.     OptTypeAnnot ::= "::" Type ;
+-- SkippedTypeAnnotation.                          OptTypeAnnot ::= ;
 
 
 separator nonempty Top "" ;
 
-Arg. 	   Arg ::= Ident;
+-- Arg. 	   Arg ::= Ident;
 
-separator  Arg "" ;
+separator  nonempty Ident "" ;
 
 
 -- expressions ---------------------------------------------
@@ -53,7 +58,7 @@ ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
 EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 
 
-ELet. 	   Expr ::= "let" Decl "=" Expr1 "in" Expr1 ; 
+ELet. 	   Expr ::= "let" Def "in" Expr1 ; 
 
 EOr.       Expr ::= Expr1 "||" Expr ;
 
