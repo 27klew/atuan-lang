@@ -1,0 +1,113 @@
+-- programs ------------------------------------------------
+
+entrypoints Program ;
+
+ProgramText.   Program ::= [Top] ;
+
+TopDecl.       Top ::= Decl ;
+TopDef.        Top ::= Def ;
+
+
+Declaration.   Decl ::= Ident "::" Type ;
+Definition.	   Def ::= Ident  [Arg]  "=" Expr ;
+
+
+separator nonempty Top "" ;
+
+Arg. 	   Arg ::= Ident;
+
+separator  Arg "" ;
+
+
+-- expressions ---------------------------------------------
+
+
+-- ExprBlock. Expr ::= Block ;
+
+CurlyBlock. Block ::= "{" Expr "}" ;
+
+-----------------------
+
+
+
+EVar.      Expr6 ::= Ident ;
+
+ELitInt.   Expr6 ::= Integer ;
+
+ELitBool.  Expr6 ::= BoolLiteral ;
+
+EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
+
+EString.   Expr6 ::= String ;
+
+Neg.       Expr5 ::= "-" Expr6 ;
+
+Not.       Expr5 ::= "!" Expr6 ;
+
+EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
+
+EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
+
+ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
+
+EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
+
+
+ELet. 	   Expr ::= "let" Decl "=" Expr1 "in" Expr1 ; 
+
+EOr.       Expr ::= Expr1 "||" Expr ;
+
+
+
+coercions  Expr 7 ;
+
+separator  Expr "," ;
+
+-- operators -----------------------------------------------
+
+Plus.      AddOp ::= "+" ;
+
+Minus.     AddOp ::= "-" ;
+
+Times.     MulOp ::= "*" ;
+
+Div.       MulOp ::= "/" ;
+
+Mod.       MulOp ::= "%" ;
+
+LTH.       RelOp ::= "<" ;
+
+LE.        RelOp ::= "<=" ;
+
+GTH.       RelOp ::= ">" ;
+
+GE.        RelOp ::= ">=" ;
+
+EQU.       RelOp ::= "==" ;
+
+NE.        RelOp ::= "!=" ;
+
+
+
+
+
+
+-- Types ---------------------------------------------------
+
+token BoolLiteral ({"True"} | {"False"}) ;
+
+TypeIdent. Type2 ::= Ident ;
+
+TypeInt. Type2 ::= "Int" ; 
+
+TypeBool. Type2 ::= "Bool" ;
+
+TypeList. Type2 ::= "[" Type "]" ; 
+
+TypeFunc. Type1 ::= Type2 "->" Type1 ;  
+
+coercions Type 2 ;
+
+
+
+
