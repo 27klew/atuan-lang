@@ -10,6 +10,8 @@ TopDef.        Top ::= Def ;
 
 -- Declaration.   Decl ::= Ident "::" Type ;
 -- Definition.	   Def ::= [Ident] "=" Expr ;
+
+
 DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
 
 
@@ -17,7 +19,7 @@ OptionalTypeAnnotation.     OptTypeAnnot ::= "::" Type ;
 -- SkippedTypeAnnotation.                          OptTypeAnnot ::= ;
 
 
-separator nonempty Top "" ;
+separator nonempty Top ";" ;
 
 -- Arg. 	   Arg ::= Ident;
 
@@ -35,38 +37,49 @@ CurlyBlock. Block ::= "{" Expr "}" ;
 
 
 
-EVar.      Expr6 ::= Ident ;
-
-ELitInt.   Expr6 ::= Integer ;
-
-ELitBool.  Expr6 ::= BoolLiteral ;
-
-EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
-
-EString.   Expr6 ::= String ;
-
-Neg.       Expr5 ::= "-" Expr6 ;
-
-Not.       Expr5 ::= "!" Expr6 ;
-
-EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
-
-EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
-
-ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
-
-EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
-
-
-ELet. 	   Expr ::= "let" Def "in" Expr1 ; 
-
-EOr.       Expr ::= Expr1 "||" Expr ;
 
 
 
-coercions  Expr 7 ;
+EVar.      Expr8 ::= Ident ;
 
-separator  Expr "," ;
+ELitInt.   Expr8 ::= Integer ;
+
+ELitBool.  Expr8 ::= BoolLiteral ;
+
+EString.   Expr8 ::= String ;
+
+
+
+EApp.      Expr7 ::= Expr8 [Expr8];
+
+
+Neg.       Expr6 ::= "-" Expr7 ;
+
+Not.       Expr6 ::= "!" Expr7 ;
+
+EMul.      Expr5 ::= Expr5 MulOp Expr6 ;
+
+EAdd.      Expr4 ::= Expr4 AddOp Expr5 ;
+
+ERel.      Expr3 ::= Expr3 RelOp Expr4 ;
+
+EAnd.      Expr2 ::= Expr3 "&&" Expr2 ;
+
+
+
+
+ELet. 	   Expr1 ::= "let" Def "in" Expr2 ; 
+
+EOr.       Expr1 ::= Expr2 "||" Expr1 ;
+
+
+
+
+coercions  Expr 8 ;
+
+separator  Expr " " ;
+
+separator nonempty Expr8 " " ;
 
 -- operators -----------------------------------------------
 
