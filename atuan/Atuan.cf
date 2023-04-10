@@ -6,13 +6,21 @@ ProgramText.   Program ::= [Top] ;
 
 -- TopDecl.       Top ::= Decl ;
 TopDef.        Top ::= Def ;
-
+TopType.        Top ::= TypeDef ;
 
 -- Declaration.   Decl ::= Ident "::" Type ;
 -- Definition.	   Def ::= [Ident] "=" Expr ;
 
 
 DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
+
+
+TypeDefinition. TypeDef ::= "data" Ident [Ident] "where" [Constr] ;
+
+-- TODO tu powinno być po prostu TypeAnnot zawsze
+DataConstructor. Constr ::= Ident OptTypeAnnot  ;
+
+separator nonempty Constr "" ;
 
 
 OptionalTypeAnnotation.     OptTypeAnnot ::= "::" Type ;
@@ -84,6 +92,7 @@ coercions  Expr 8 ;
 separator  Expr " " ;
 
 separator nonempty Expr8 " " ;
+
 
 -- operators -----------------------------------------------
 
