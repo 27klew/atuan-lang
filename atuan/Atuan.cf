@@ -48,7 +48,11 @@ ELitBool.  Expr8 ::= BoolLiteral ;
 
 EString.   Expr8 ::= String ;
 
+ListVal.   Val ::= Expr8 ;
 
+ELitList.  Expr8 ::= "[" [Val] "]" ;
+
+separator Val "," ;
 
 EApp.      Expr7 ::= Expr8 [Expr8];
 
