@@ -15,7 +15,13 @@ TopType.        Top ::= TypeDef ;
 DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
 
 
-TypeDefinition. TypeDef ::= "data" Ident [Ident] "where" [Constr] ;
+TypeDefinition. TypeDef ::= "data" Ident [TVar] "where" [Constr] ;
+
+
+TypeVariable. TVar ::= Ident ;
+
+separator TVar " " ;
+
 
 -- TODO tu powinno być po prostu TypeAnnot zawsze
 DataConstructor. Constr ::= Ident OptTypeAnnot  ;
@@ -27,7 +33,7 @@ OptionalTypeAnnotation.     OptTypeAnnot ::= "::" Type ;
 -- SkippedTypeAnnotation.                          OptTypeAnnot ::= ;
 
 
-separator nonempty Top ";" ;
+terminator nonempty Top ";" ;
 
 -- Arg. 	   Arg ::= Ident;
 
@@ -128,6 +134,8 @@ NE.        RelOp ::= "!=" ;
 token BoolLiteral ({"True"} | {"False"}) ;
 
 TypeIdent. Type2 ::= Ident ;
+
+-- TypeApp. Type2 ::= Ident [Ident] ;
 
 TypeInt. Type2 ::= "Int" ; 
 
