@@ -125,25 +125,29 @@ NE.        RelOp ::= "!=" ;
 
 -- Patterns ------------------------------------------------
 
-
-
-
-
-PatternIdent. Pattern ::= Ident ;
-
 PatternEmptyList. ListPattern ::= "[]" ;
 
-PatternConsList. ListPattern ::= Ident ":" Ident;
+PatternConsList. ListPattern ::= Pattern4 ":" Pattern4 ;
 
-PatternList. Pattern ::= ListPattern ;
 
-PatternConstr. Pattern ::= Ident "(" [Field] ")" ;
 
-ConstrField. Field ::= Ident ;
+PatternIdent. Pattern4 ::= Ident ;
+
+PatternConstr. Pattern4 ::= Ident "(" [Field] ")" ;
+
+PatternLiteral. Pattern4 ::= Literal ; 
+
+PatternList. Pattern3 ::= ListPattern ;
+
+
+coercions Pattern 4;
+
+
+
+ConstrField. Field ::= Pattern4 ;
 
 separator Field "," ;
 
-PatternValue. Pattern ::= Literal ; 
 
 
 
