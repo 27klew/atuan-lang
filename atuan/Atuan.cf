@@ -49,7 +49,7 @@ CurlyBlock. Block ::= "{" Expr "}" ;
 
 -----------------------
 
-
+AnonymousFunction. Lambda ::= "(lambda" [Ident] OptTypeAnnot "=>" Expr ")" ;
 
 
 
@@ -60,9 +60,11 @@ ELitInt.   Expr8 ::= Integer ;
 
 ELitBool.  Expr8 ::= BoolLiteral ;
 
-EString.   Expr8 ::= String ;
+-- EString.   Expr8 ::= String ;
 
-ListVal.   Val ::= Expr8 ;
+ELambda.   Expr8 ::= Lambda ;
+
+ValList.   Val ::= Expr8 ;
 
 ELitList.  Expr8 ::= "[" [Val] "]" ;
 
@@ -83,14 +85,19 @@ ERel.      Expr3 ::= Expr3 RelOp Expr4 ;
 
 EAnd.      Expr2 ::= Expr3 "&&" Expr2 ;
 
-
-
-
-ELet. 	   Expr1 ::= "let" Def "in" Expr2 ; 
-
 EOr.       Expr1 ::= Expr2 "||" Expr1 ;
 
 
+EMatch.    Expr1 ::= "match" Ident "with" [PatternBranch] ;
+
+EIf.       Expr1 ::= "if" Expr2 "then" Expr2 "else" Expr2 ;
+
+ELet.      Expr1 ::= "let" Def "in" Expr2 ; 
+
+
+BranchPattern. PatternBranch ::= "(" Pattern ")" ">>>" Expr2 ;
+
+separator nonempty PatternBranch "," ;
 
 
 coercions  Expr 8 ;
@@ -126,6 +133,38 @@ NE.        RelOp ::= "!=" ;
 
 
 
+-- Patterns ------------------------------------------------
+
+
+
+
+
+PatternIdent. Pattern ::= Ident ;
+
+PatternEmptyList. ListPattern ::= "[]" ;
+
+PatternConsList. ListPattern ::= Ident ":" Ident;
+
+PatternList. Pattern ::= ListPattern ;
+
+PatternConstr. Pattern ::= Ident "(" [Field] ")" ;
+
+ConstrField. Field ::= Ident ;
+
+separator Field "," ;
+
+PatternValue. Pattern ::= Literal ; 
+
+
+
+IntLit. Literal ::= Integer ;
+
+BoolLit. Literal ::= BoolLiteral ;
+
+LiteralList. Literal ::= "[" [Literal] "]" ;
+
+separator Literal "," ;
+
 
 
 
@@ -147,6 +186,11 @@ TypeFunc. Type1 ::= Type2 "->" Type1 ;
 
 coercions Type 2 ;
 
+
+
+-- comments ------------------------------------------------
+
+comment    "--" ;
 
 
 
