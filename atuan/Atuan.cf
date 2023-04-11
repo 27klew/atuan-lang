@@ -162,20 +162,24 @@ separator Literal "," ;
 
 token BoolLiteral ({"True"} | {"False"}) ;
 
-TypeIdent. Type2 ::= Ident ;
 
--- TypeApp. Type2 ::= Ident [Ident] ;
+TypeInt. Type4 ::= "Int" ; 
 
-TypeInt. Type2 ::= "Int" ; 
+TypeBool. Type4 ::= "Bool" ;
 
-TypeBool. Type2 ::= "Bool" ;
+TypeList. Type4 ::= "[" Type "]" ; 
 
-TypeList. Type2 ::= "[" Type "]" ; 
+TypeIdent. Type4 ::= Ident;
+
+TypeApp. Type3 ::= "(" Ident [Type4] ")";
+
+
+separator nonempty Type4 " " ;
+
 
 TypeFunc. Type1 ::= Type2 "->" Type1 ;  
 
-coercions Type 2 ;
-
+coercions Type 4 ;
 
 
 -- comments ------------------------------------------------
