@@ -23,14 +23,15 @@ TypeVariable. TVar ::= Ident ;
 separator TVar " " ;
 
 
--- TODO tu powinno być po prostu TypeAnnot zawsze
-DataConstructor. Constr ::= Ident OptTypeAnnot  ;
+DataConstructor. Constr ::= Ident TypeAnnot  ;
 
 separator nonempty Constr "" ;
 
 
-OptionalTypeAnnotation.     OptTypeAnnot ::= "::" Type ;
--- SkippedTypeAnnotation.                          OptTypeAnnot ::= ;
+TypeAnnotation.                              TypeAnnot   ::= "::" Type ;
+
+OptionalTypeAnnotation.                      OptTypeAnnot ::= TypeAnnot ;
+SkippedTypeAnnotation.                       OptTypeAnnot ::= ;
 
 
 terminator nonempty Top ";" ;
