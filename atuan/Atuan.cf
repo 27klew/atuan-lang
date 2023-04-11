@@ -4,12 +4,8 @@ entrypoints Program ;
 
 ProgramText.   Program ::= [Top] ;
 
--- TopDecl.       Top ::= Decl ;
 TopDef.        Top ::= Def ;
 TopType.        Top ::= TypeDef ;
-
--- Declaration.   Decl ::= Ident "::" Type ;
--- Definition.	   Def ::= [Ident] "=" Expr ;
 
 
 DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
@@ -31,7 +27,7 @@ separator nonempty Constr "" ;
 TypeAnnotation.                              TypeAnnot   ::= "::" Type ;
 
 OptionalTypeAnnotation.                      OptTypeAnnot ::= TypeAnnot ;
-SkippedTypeAnnotation.                       OptTypeAnnot ::= ;
+-- SkippedTypeAnnotation.                       OptTypeAnnot ::= ;
 
 
 terminator nonempty Top ";" ;
@@ -44,15 +40,10 @@ separator  nonempty Ident "" ;
 -- expressions ---------------------------------------------
 
 
--- ExprBlock. Expr ::= Block ;
-
 CurlyBlock. Block ::= "{" Expr "}" ;
 
------------------------
 
 AnonymousFunction. Lambda ::= "(lambda" [Ident] OptTypeAnnot "=>" Expr ")" ;
-
-
 
 
 EVar.      Expr8 ::= Ident ;
@@ -60,8 +51,6 @@ EVar.      Expr8 ::= Ident ;
 ELitInt.   Expr8 ::= Integer ;
 
 ELitBool.  Expr8 ::= BoolLiteral ;
-
--- EString.   Expr8 ::= String ;
 
 ELambda.   Expr8 ::= Lambda ;
 
