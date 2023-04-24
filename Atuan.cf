@@ -8,7 +8,16 @@ TopDef.        Top ::= Def ;
 TopType.        Top ::= TypeDef ;
 
 
-DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
+-- DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
+
+DefinitionT.   Def ::= Ident [OTIdent] OptTypeAnnot "=" Expr ;
+
+
+TypedIdentifier.	TIdent ::= "(" Ident TypeAnnot ")" ;
+
+OptionallyTypedIdentifier. 	OTIdent ::= TIdent ;
+
+SkippedTypeIdentifier. 		OTIdent ::= Ident ;
 
 
 TypeDefinition. TypeDef ::= "data" Ident [TVar] "where" [Constr] ;
@@ -27,7 +36,7 @@ separator nonempty Constr "" ;
 TypeAnnotation.                              TypeAnnot   ::= "::" Type ;
 
 OptionalTypeAnnotation.                      OptTypeAnnot ::= TypeAnnot ;
--- SkippedTypeAnnotation.                       OptTypeAnnot ::= ;
+SkippedTypeAnnotation.                       OptTypeAnnot ::= ;
 
 
 terminator nonempty Top ";" ;
@@ -36,6 +45,8 @@ terminator nonempty Top ";" ;
 
 separator  nonempty Ident "" ;
 
+separator OTIdent "" ;
+
 
 -- expressions ---------------------------------------------
 
@@ -43,7 +54,7 @@ separator  nonempty Ident "" ;
 CurlyBlock. Block ::= "{" Expr "}" ;
 
 
-AnonymousFunction. Lambda ::= "(lambda" [Ident] OptTypeAnnot "=>" Expr ")" ;
+AnonymousFunction. Lambda ::= "(lambda" Ident [OTIdent] OptTypeAnnot "=>" Expr ")" ;
 
 
 EVar.      Expr8 ::= Ident ;
@@ -131,22 +142,22 @@ PatternConsList. ListPattern ::= Pattern4 ":" Pattern4 ;
 
 
 
-PatternIdent. Pattern4 ::= Ident ;
+PatternLiteral. Pattern5 ::= Literal ; 
 
-PatternConstr. Pattern4 ::= Ident "(" [Field] ")" ;
+-- PatternIdent. Pattern5 ::= Ident ;
 
-PatternLiteral. Pattern4 ::= Literal ; 
+PatternConstr. Pattern4 ::= Ident [Field] ;
 
 PatternList. Pattern3 ::= ListPattern ;
 
-
-coercions Pattern 4;
-
+coercions Pattern 5;
 
 
-ConstrField. Field ::= Pattern4 ;
+ConstrField. Field ::= Pattern5 ;
 
-separator Field "," ;
+ConstrFieldIdent. Field ::= Ident ; 
+
+separator Field " " ;
 
 
 
