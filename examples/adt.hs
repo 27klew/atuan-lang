@@ -11,8 +11,8 @@ x :: Tree = Node 4 Leaf Leaf;
 
 
 y :: Int = match x with
-	(Node(i, l, r)) >>> i,
-	(Leaf()) >>> 0;
+	(Node i l r) >>> i,
+	(Leaf) >>> 0;
 
  
 data TypedTree a where 

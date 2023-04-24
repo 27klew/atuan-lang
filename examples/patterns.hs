@@ -8,8 +8,13 @@ y :: Int = match b with
 
 
 z :: Int = match SomeType with
-  (Some(x, y)) >>> x,
-  (None()) >>> 0;
+  (Some x y) >>> x,
+  (None) >>> 0;
+
+
+z2 :: Int = match SomeType with
+  (Some (Some x) y) >>> x,
+  (None) >>> 0;
 
 
 w :: Int = match x with 

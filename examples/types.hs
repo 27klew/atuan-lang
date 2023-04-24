@@ -15,9 +15,6 @@ data SomeType where
 ;
 
 
-
 e :: SomeType = SomeInt 123;
-
-
 
 
