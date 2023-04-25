@@ -24,14 +24,14 @@ import System.Environment ( getArgs )
 import System.Exit        ( exitFailure )
 import Control.Monad      ( when )
 
-import Atuan.Abs   (Program, TVar', Constr')
+import Atuan.Abs   (Program, TVar', Constr', Ident)
 import Atuan.Lex   ( Token, mkPosToken )
 import Atuan.Par   ( pProgram, myLexer )
 import Atuan.Print ( Print, printTree )
 import Atuan.Skel  ()
 import Atuan.CollectTop ( collect , TypeEnv )
 import Data.List
-import Data.Map (elems)
+import Data.Map (elems, toList)
 
 
 
@@ -47,11 +47,18 @@ runFile :: Verbosity -> ParseFun Program -> FilePath -> IO ()
 runFile v p f = putStrLn f >> readFile f >>= run v p
 
 
-showType :: Show a => ([TVar' a], [Constr' a]) -> String
-showType (vars, contrs) = "vars: " ++ show vars  ++ "constr: " ++ show contrs
+showType :: Show a => (Ident, ([TVar' a], [Constr' a])) -> String
+showType (ident, (vars, contrs)) = "Type: " ++ show ident ++ "\n\tvars: " ++ show vars  ++ "\n\tconstr: " ++ show contrs 
 
 showMap :: Show a =>  TypeEnv a -> String
-showMap x = intercalate  " \n \n \n " (map showType (elems x)) 
+showMap x = intercalate  ndashes (map showType (toList x)) 
+
+
+dashes = "--------------------------------------------------------------------------"
+ndashes = "\n" ++ dashes ++ "\n"
+
+ndash s = ndashes ++ dashes ++ "\n\n\t\t\t\t" ++ s ++ "\n" ++ dashes ++ ndashes 
+
 
 
 run ::  Verbosity -> ParseFun Program -> String -> IO ()
@@ -70,7 +77,9 @@ run v p s =
       
       case collect tree of
         Left str -> putStrLn $ "error: " ++ str
-        Right map -> putStrLn $ "types: " ++ showMap map
+        Right map -> 
+          putStrLn $ 
+            ndash "types"  ++ showMap map
 
 
 

@@ -6,15 +6,21 @@ import Control.Monad.Reader (Reader, ReaderT)
 import Control.Monad.Except (ExceptT, runExceptT, when, MonadError (throwError), unless)
 import Data.Functor.Identity (Identity (runIdentity))
 import Control.Monad.State.Strict (modify, put, get, StateT, execStateT, runState, evalState, evalStateT)
-import Data.Map (Map, insert, empty)
+import Data.Map (Map, insert, empty, keys, member, elems, toList)
 import Data.Char (isUpper, isLower)
 import GHC.Conc (TVar(TVar))
+import qualified Data.Set as Set (fromList)
+import Data.List (sort)
+import Data.Maybe (isNothing)
+-- import Prelude (Maybe(..), Eq, Either(..), String, Show, Bool, mapM_, (==), )
 
 
 -- TODO something other here
-data Type = Int | Bool | Func Type Type
+-- data Type = Int | Bool | Func Type Type/
 
 type TypeEnv a = Map Ident ([TVar' a], [Constr' a])
+
+data ADTs a = ADTs {types :: Map Ident [Ident], constr :: Map Ident [Type' a]}
 
 
 -- type SS a = ReaderT TypeEnv (ExceptT String Identity) a
@@ -22,14 +28,63 @@ type TypeEnv a = Map Ident ([TVar' a], [Constr' a])
 type RE a b = (StateT (TypeEnv b) (ExceptT String Identity)) a
 
 
+-- isType :: Ident -> RE () b
+-- isType i = do
+--   env <- get
+--   unless (member i env)
+--     (throwError $ "Not a type: " ++ show i) 
+
+
+-- identConstr :: Constr' a -> Ident
+-- identConstr (DataConstructor _ i _) = i
+
+
+-- isConstr ::  Ident -> RE Ident b
+-- isConstr i = do
+--   env <- get
+--   -- let l = toList env
+--   -- let li = map (\(x, y) -> (x, identConstr (snd y))) l
+--   -- let l' = filter (\(_, x) -> elem i x) li
+
+--   -- when (null l')
+--   --   (throwError $ "No such constructor " ++ show i)
+
+
+--   throwError "aaa"
+
+
+
 collect :: Show a => Atuan.Abs.Program' a -> Either String (TypeEnv a)
 collect program = runIdentity (runExceptT (execStateT ( collectProgram program) empty))
 
 
+
+
+findDuplicate :: Eq a => [a] -> Maybe a
+findDuplicate [] = Nothing
+findDuplicate (_:[]) = Nothing
+findDuplicate (x:y:xs) =
+  if x == y then Just x else findDuplicate (y:xs)
+
+
+
+checkConstructors :: [Ident] -> RE () a
+checkConstructors con = do
+  let dup = findDuplicate con
+  unless (isNothing dup)
+   ( throwError $ "Data constructors should be unique: " ++ show dup )
+
+
 collectProgram :: Show a => Atuan.Abs.Program' a -> RE () a
 collectProgram (Atuan.Abs.ProgramText ann tops) = do
-    mapM_ collectTypes tops
+    mapM_ collectType tops
+    types <- get
+    let con = map snd (elems types)
+    let con' = map (\(DataConstructor _ id _) -> id) (concat con)
+    let con'' = sort con'
+    checkConstructors con''
 
+    return ()
 
 
 isUpperIdent :: Ident -> Bool
@@ -85,15 +140,15 @@ checkDataConstr id vars (DataConstructor pos ident (TypeAnnotation _ ty)) = do
 
 
 
-identToVar :: Show a => Type' a -> RE (Type' a) a 
+identToVar :: Show a => Type' a -> RE (Type' a) a
 identToVar x = case x of
   TypeInt a -> return $ TypeInt a
   TypeBool a -> return $ TypeBool a
-  TypeList a ty -> do 
-    ty' <- identToVar ty 
+  TypeList a ty -> do
+    ty' <- identToVar ty
     return $ TypeList a ty'
   TypeApp a id tys -> do
-    checkTypeName id    
+    checkTypeName id
     tys' <- mapM identToVar tys
     return $ TypeApp a id tys'
 
@@ -102,14 +157,14 @@ identToVar x = case x of
     ty2' <- identToVar ty2
     return $ TypeFunc a ty1' ty2'
 
-  TypeIdent a id -> 
-    if isLowerIdent id then 
+  TypeIdent a id ->
+    if isLowerIdent id then
         -- error "Whhhhooo"
         return $ TypeVar a id
     else
         return $ TypeIdent a id
 
-  TypeVar a id -> do 
+  TypeVar a id -> do
     checkTypeVar (TypeVariable a id)
     return $ TypeVar a id
 
@@ -120,31 +175,24 @@ identToVarConstr (DataConstructor pos ident (TypeAnnotation ps ty)) = do
     return (DataConstructor pos ident (TypeAnnotation ps ty'))
 
 
-collectTypes :: Show a => Atuan.Abs.Top' a -> RE () a
-collectTypes (TopDef _ _ ) = return ()
-collectTypes (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
+checkIdentUnique :: Ident -> Map Ident a -> RE () b
+checkIdentUnique i m =
+  when (member i m)
+    (throwError $ "Typename " ++ show i ++ "is not unique")
+
+
+
+collectType :: Show a => Atuan.Abs.Top' a -> RE () a
+collectType (TopDef _ _ ) = return ()
+collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
 
     checkTypeName ident
     mapM_ checkTypeVar vars
     mapM_ (checkDataConstr ident vars) constr
     constr' <-  mapM identToVarConstr constr
 
+    m <- get
+    checkIdentUnique ident m
+
     modify (insert ident (vars, constr'))
-
-
-
--- x :: Type' ()
--- x = TypeIdent () (Ident "aaaaa")
-
--- -- >>> isLowerIdent (Ident "aaaa")
--- -- True
-
--- y = identToVar x
-
--- y1 = runIdentity $ runExceptT (evalStateT y empty)
-
--- >>> y1
--- Right (TypeVar () (Ident "aaaaa"))
-
-
 

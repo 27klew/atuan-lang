@@ -1,8 +1,8 @@
 
 
 data Tree where
-	NodeSimple :: Int -> Tree -> Tree -> Tree
-	LeafSimple :: Tree
+	Node :: Int -> Tree -> Tree -> Tree
+	Leaf :: Tree
 	;
 
 
