@@ -16,11 +16,6 @@ y :: Int = match x with
 
  
 data TypedTree a where 
-	Node :: a -> (TypedTree a) -> (TypedTree a) -> (TypedTree a)
-	Leaf :: (TypedTree a)
-	;
-
-
-data AnotherTree x y z where
-	Node :: a -> (AnotherTree a b c)
+	Node :: a -> (Tree a) -> (Tree a) -> (Tree a)
+	Leaf :: (Tree a)
 	;

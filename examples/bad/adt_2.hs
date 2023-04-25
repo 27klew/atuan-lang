@@ -21,6 +21,6 @@ data TypedTree a where
 	;
 
 
-data AnotherTree x y z where
-	Node :: a -> (AnotherTree a b c)
+data AnotherTree A where
+	Node :: a -> (AnotherTree a)
 	;
