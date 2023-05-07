@@ -30,6 +30,7 @@ import Atuan.Par   ( pProgram, myLexer )
 import Atuan.Print ( Print, printTree )
 import Atuan.Skel  ()
 import Atuan.CollectTypes ( collect , ADTs (ADTs, from_name, from_constr), ADT (ADT) )
+import Atuan.TypeCheck (typecheck)
 import Data.List ( (++), map, concat, unlines, intercalate )
 import Data.Map (elems, toList, keys, Map, lookup)
 
@@ -111,13 +112,24 @@ run v p s =
       showTree v tree
       putStrLn "\nSummary!"
 
-      case collect tree of
+      let types = collect tree
+
+      case  types of
         Left str -> putStrLn $ "error: " ++ str
         Right map ->
           putStrLn $
             ndash "types"  ++ showTypes map
+        
+      let Right types' = types
+      let typed = typecheck types' tree
 
+      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
+      case  typed of
+        Left str -> putStrLn $ "error: " ++ str
+        Right typed' -> do
+          putStrLn "\n\n\n\nTypeCheck Successful!"
+          showTree v typed'
 
       putStrLn "\n\n\nThat's It!"
   where
