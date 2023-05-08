@@ -6,7 +6,7 @@ import qualified Data.Set as Set
 
 
 
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -15,18 +15,7 @@ import Control.Monad.State
 import qualified Text.PrettyPrint as PP
 
 
-data Op = OpMul | OpPlus | OpTimes | OpDiv | OpOr | OpAnd  
-    deriving(Eq, Ord)
-
-tiOp OpMul = TInt
-tiOp OpPlus = TInt
-tiOp OpTimes = TInt
-tiOp OpDiv = TInt
-tiOp OpOr = TBool
-tiOp OpAnd = TBool
-
-
-data Def = Definition String String Exp 
+data Def = Definition String String Exp
 
 data Program = Program [Def]
 
@@ -37,18 +26,42 @@ data Exp     =  EVar String
              |  ELet String Exp Exp
              |  ELetRec String Exp Exp
              |  EIf  Exp Exp Exp
-             |  EOp  Op Exp Exp
-            --  | EMatch a Ident [PatternBranch' a] TODO pattern match
+             |  EBinOp Exp OpBin Exp
+             |  EUnOp  OpUn Exp
+
              deriving (Eq, Ord)
+
+
+            -- | TODO
+            -- | ELitList a [Val' a] 
+            -- | EMatch a Ident [PatternBranch' a]
+
+data OpUn = OpNeg | OpNot deriving (Eq, Ord)
+data OpBin = OpMul ()| OpAdd () | OpRel () | OpAnd | OpOr deriving (Eq, Ord)
+
+
+tiOpBin :: OpBin -> Type
+tiOpBin (OpMul _) = TInt
+tiOpBin (OpAdd _) = TInt
+tiOpBin (OpRel _) = TInt
+tiOpBin OpOr = TBool
+tiOpBin OpAnd = TBool
+
+tiOpUn :: OpUn -> Type
+tiOpUn OpNeg = TInt
+tiOpUn OpNot = TBool
+
 
 data Lit     =  LInt Integer
              |  LBool Bool
+             |  LList [Exp]
              deriving (Eq, Ord)
 
 data Type    =  TVar String
              |  TInt
              |  TBool
              |  TFun Type Type
+             |  ADT String [Type]
              deriving (Eq, Ord)
 
 data Scheme  =  Scheme [String] Type
@@ -69,6 +82,7 @@ instance Types Type where
     ftv TInt          =  Set.empty
     ftv TBool         =  Set.empty
     ftv (TFun t1 t2)  =  ftv t1 `Set.union` ftv t2
+    ftv (ADT _ ts)    =  Prelude.foldr Set.union Set.empty (Prelude.map ftv ts)
 
     apply s (TVar n)      =  case Map.lookup n s of
                                Nothing  -> TVar n
@@ -127,11 +141,11 @@ data TIEnv = TIEnv  {}
 
 data TIState = TIState { tiSupply :: Int }
 
-type TI a = ErrorT String (ReaderT TIEnv (StateT TIState IO)) a
+type TI a = ExceptT String (ReaderT TIEnv (StateT TIState IO)) a
 
 runTI :: TI a -> IO (Either String a, TIState)
-runTI t = 
-    do (res, st) <- runStateT (runReaderT (runErrorT t) initTIEnv) initTIState
+runTI t =
+    do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
        return (res, st)
   where initTIEnv = TIEnv
         initTIState = TIState{tiSupply = 0}
@@ -162,7 +176,7 @@ mgu (TVar u) t               =  varBind u t
 mgu t (TVar u)               =  varBind u t
 mgu TInt TInt                =  return nullSubst
 mgu TBool TBool              =  return nullSubst
-mgu t1 t2                    =  throwError $ "types do not unify: " ++ show t1 ++ 
+mgu t1 t2                    =  throwError $ "types do not unify: " ++ show t1 ++
                                 " vs. " ++ show t2
 
 varBind :: String -> Type -> TI Subst
@@ -178,10 +192,12 @@ varBind u t  | t == TVar u           =  return nullSubst
 tiLit :: Lit -> TI (Subst, Type)
 tiLit (LInt _)   =  return (nullSubst, TInt)
 tiLit (LBool _)  =  return (nullSubst, TBool)
+-- tiLit (LList []) = 
+
 
 
 tiProg :: TypeEnv -> Program -> TI (Subst)
-tiProg env (Program []) = 
+tiProg env (Program []) =
     return nullSubst
 
 tiProg env (Program (def:defs)) = do
@@ -192,14 +208,14 @@ tiProg env (Program (def:defs)) = do
 tiDef :: TypeEnv -> Def -> TI (Subst, Type, TypeEnv)
 tiDef env (Definition name args e) = do
     tv <- newTyVar "a"
-    
+
 
     throwError "Not yet implemented"
 
 
 
 ti        ::  TypeEnv -> Exp -> TI (Subst, Type)
-ti (TypeEnv env) (EVar n) = 
+ti (TypeEnv env) (EVar n) =
     case Map.lookup n env of
        Nothing     ->  throwError $ "unbound variable: " ++ n
        Just sigma  ->  do  t <- instantiate sigma
@@ -229,10 +245,10 @@ ti env (ELet x e1 e2) =
         return (s1 `composeSubst` s2, t2)
 
 
-ti env (ELetRec x e1 e2) = do 
+ti env (ELetRec x e1 e2) = do
     let TypeEnv env' = remove env x
-    tv <- newTyVar "a" 
-    let tv' = Scheme [] tv 
+    tv <- newTyVar "a"
+    let tv' = Scheme [] tv
     (s1, t1) <- ti (TypeEnv $ Map.insert x tv' env') e1
 
     -- (s1, t1) <- ti env e1
@@ -242,10 +258,10 @@ ti env (ELetRec x e1 e2) = do
     return (s1 `composeSubst` s2, t2)
 
 
-ti env (EIf cond e1 e2) = do 
+ti env (EIf cond e1 e2) = do
     (sc, tc) <- ti env cond
     sc' <- mgu (apply sc tc) TBool
-    
+
     (s1, t1) <- ti (apply sc' env) e1
     (s2, t2) <- ti (apply s1 env) e2
     s3 <- mgu (apply s2 t1) (apply s2 t2)
@@ -254,14 +270,22 @@ ti env (EIf cond e1 e2) = do
 
 
 
-ti env (EOp op e1 e2) = do
-    let t = tiOp op    
+ti env (EBinOp e1 op e2) = do
+    let t = tiOpBin op
     (s1, t1) <- ti env e1
     (s2, t2) <- ti (apply s1 env) e2
     s3 <- mgu (apply s2 t1) (apply s2 t2)
     s3' <- mgu (apply s3 t2) t
 
     return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
+
+
+ti env (EUnOp op e) = do
+    let t = tiOpUn op
+    (s1, t1) <- ti env e
+    s2 <- mgu (apply s1 t1) t
+
+    return (s2 `composeSubst` s1, apply s2 t1)
 
 
 
@@ -294,7 +318,7 @@ e4  =  ELet "id" (EAbs "x" (EApp (EVar "x") (EVar "x")))
 e5  =  EAbs "m" (ELet "y" (EVar "m")
                  (ELet "x" (EApp (EVar "y") (ELit (LBool True)))
                        (EVar "x")))
-       
+
 e6  =  EApp (ELit (LInt 2)) (ELit (LInt 2))
 
 
@@ -309,75 +333,75 @@ e9  = EIf (ELit $ LInt 5) (ELit $ LBool True) (ELit $ LInt 5)
 
 
 
-e10  = EIf (EOp OpOr (ELit $ LBool True) (ELit $ LBool True)) (ELit $ LInt 4) (ELit $ LInt 5)
+e10  = EIf (EBinOp  (ELit $ LBool True) OpOr (ELit $ LBool True)) (ELit $ LInt 4) (ELit $ LInt 5)
 
-e11  = EIf (EOp OpOr (ELit $ LInt 4) (ELit $ LBool True)) (ELit $ LBool True) (ELit $ LInt 5)
+e11  = EIf (EBinOp (ELit $ LInt 4) OpOr (ELit $ LBool True)) (ELit $ LBool True) (ELit $ LInt 5)
 
 e12 = EIf (ELit $ LInt 5) (ELit $ LBool True) (ELit $ LInt 5)
 
 
-e13 = ELet "fun" (EAbs "x" 
+e13 = ELet "fun" (EAbs "x"
         (
-            EIf (ELit $ LBool True) 
+            EIf (ELit $ LBool True)
                 (EApp (EVar "fun") (ELit $ LInt 5))
                 (ELit $ LInt 5)
         )
-    ) 
+    )
     (
         EApp (EVar "fun") (ELit $ LInt 5)
     )
 
-e14 = ELetRec "fun" (EAbs "x" 
+e14 = ELetRec "fun" (EAbs "x"
         (
-            EIf (ELit $ LBool True) 
+            EIf (ELit $ LBool True)
                 (EApp (EVar "fun") (ELit $ LInt 5))
                 (ELit $ LInt 5)
         )
-    ) 
+    )
     (
         EApp (EVar "fun") (ELit $ LInt 5)
     )
 
-e15 = ELetRec "fun" (EAbs "x" 
+e15 = ELetRec "fun" (EAbs "x"
         (
-            EIf (ELit $ LBool True) 
+            EIf (ELit $ LBool True)
                 (EApp (EVar "fun") (EVar "x"))
                 (EVar "x")
         )
-    ) 
+    )
     (
         EApp (EVar "fun") (ELit $ LInt 5)
     )
 
 
-e16 = ELetRec "fun" (EAbs "x" 
+e16 = ELetRec "fun" (EAbs "x"
         (
-            EIf (ELit $ LBool True) 
+            EIf (ELit $ LBool True)
                 (EApp (EVar "fun") (EVar "x"))
                 (EVar "x")
         )
-    ) 
+    )
     (
         (EVar "fun")
     )
 
-e17 = ELetRec "fun" (EAbs "x" 
+e17 = ELetRec "fun" (EAbs "x"
         (
-            EIf (ELit $ LBool True) 
+            EIf (ELit $ LBool True)
                 (EApp (EVar "fun") (ELit $ LBool True))
                 (EVar "x")
         )
-    ) 
+    )
     (
         EApp (EVar "fun") (ELit $ LInt 5)
     )
 
 
-e18 = ELetRec "double" (EAbs "f" 
+e18 = ELetRec "double" (EAbs "f"
         (
             EAbs "x"
             (
-                EApp 
+                EApp
                     (EVar "f")
                     (EApp
                         (EVar "f")
@@ -385,7 +409,7 @@ e18 = ELetRec "double" (EAbs "f"
                     )
             )
         )
-    ) 
+    )
     (
         -- EApp 
             (
@@ -397,14 +421,14 @@ e18 = ELetRec "double" (EAbs "f"
                 --         EVar "c"
                 --     )
                 -- )
-            )  
-        
-        
+            )
+
+
             -- (ELit $ LInt 5)
     )
 
 
-e19 = ELetRec "iter" 
+e19 = ELetRec "iter"
     (EAbs "f" (
         EAbs "x" (
             EAbs "n" (
@@ -447,6 +471,7 @@ prType (TVar n)    =   PP.text n
 prType TInt        =   PP.text "Int"
 prType TBool       =   PP.text "Bool"
 prType (TFun t s)  =   prParenType t PP.<+> PP.text "->" PP.<+> prType s
+prType (ADT name ts) = PP.text (name ++ ": ") PP.<+> (PP.text $ show ( (map (show . prType) ts)))
 
 prParenType     ::  Type -> PP.Doc
 prParenType  t  =   case t of
@@ -459,13 +484,13 @@ instance Show Exp where
 prExp                  ::  Exp -> PP.Doc
 prExp (EVar name)      =   PP.text name
 prExp (ELit lit)       =   prLit lit
-prExp (ELet x b body)  =   PP.text "let" PP.<+> 
+prExp (ELet x b body)  =   PP.text "let" PP.<+>
                            PP.text x PP.<+> PP.text "=" PP.<+>
                            prExp b PP.<+> PP.text "in" PP.$$
                            PP.nest 2 (prExp body)
 
 
-prExp (ELetRec x b body)  =   PP.text "letrec" PP.<+> 
+prExp (ELetRec x b body)  =   PP.text "letrec" PP.<+>
                            PP.text x PP.<+> PP.text "=" PP.<+>
                            prExp b PP.<+> PP.text "in" PP.$$
                            PP.nest 2 (prExp body)
@@ -481,11 +506,23 @@ prExp (EIf c e1 e2)    =   PP.text "IF " PP.<+>  PP.text"(" PP.<+> prExp c PP.<+
                                         PP.<+>  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")  else"
                                         PP.<+>  PP.text"(" PP.<+> prExp e2 PP.<+>  PP.text")  endif"
 
-prExp (EOp op e1 e2) =  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")"
-                        PP.<+>  prOp op                  
+prExp (EBinOp e1 op e2) =  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")"
+                        PP.<+>  prOpBin op
                         PP.<+>  PP.text"(" PP.<+> prExp e2 PP.<+>  PP.text")"
 
-prOp _ = PP.text "OP"                                                
+
+prExp (EUnOp op e) = prOpUn op  PP.<+>  PP.text"(" PP.<+> prExp e PP.<+>  PP.text")"
+
+
+prOpUn OpNeg = PP.text "-"
+prOpUn OpNot = PP.text "~"
+
+
+prOpBin (OpAdd _)= PP.text "+"
+prOpBin (OpMul _)= PP.text "*"
+prOpBin (OpRel _)= PP.text "<"
+prOpBin OpAnd = PP.text "&&"
+prOpBin OpOr = PP.text "||"
 
 
 
@@ -508,7 +545,7 @@ instance Show Scheme where
 
 prScheme                  ::  Scheme -> PP.Doc
 prScheme (Scheme vars t)  =   PP.text "All" PP.<+>
-                              PP.hcat 
+                              PP.hcat
                                 (PP.punctuate PP.comma (map PP.text vars))
                               PP.<> PP.text "." PP.<+> prType t
 
@@ -535,9 +572,9 @@ prConstraint (CEquivalent t1 t2) = PP.hsep [prType t1, PP.text "=", prType t2]
 prConstraint (CExplicitInstance t s) =
     PP.hsep [prType t, PP.text "<~", prScheme s]
 prConstraint (CImplicitInstance t1 m t2) =
-    PP.hsep [prType t1, 
-             PP.text "<=" PP.<> 
-               PP.parens (PP.hcat (PP.punctuate PP.comma (map PP.text (Set.toList m)))), 
+    PP.hsep [prType t1,
+             PP.text "<=" PP.<>
+               PP.parens (PP.hcat (PP.punctuate PP.comma (map PP.text (Set.toList m)))),
              prType t2]
 
 type Assum = [(String, Type)]
