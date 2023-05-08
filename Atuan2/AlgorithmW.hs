@@ -15,13 +15,16 @@ import Control.Monad.State
 import qualified Text.PrettyPrint as PP
 
 
-
+data Op = OpMul | OpPlus | OpTimes | OpDiv | OpOr | OpAnd  
+    deriving(Eq, Ord)
 
 data Exp     =  EVar String
              |  ELit Lit
              |  EApp Exp Exp
              |  EAbs String Exp
              |  ELet String Exp Exp
+             |  EIf  Exp Exp Exp
+             |  EOp  Op Exp Exp
              deriving (Eq, Ord)
 
 data Lit     =  LInt Integer
@@ -193,8 +196,15 @@ ti env (ELet x e1 e2) =
             env'' = TypeEnv (Map.insert x t' env')
         (s2, t2) <- ti (apply s1 env'') e2
         return (s1 `composeSubst` s2, t2)
+ti env (EIf cond e1 e2) = do 
+    (sc, tc) <- ti env cond
+    sc' <- mgu (apply sc tc) TBool
+    
+    (s1, t1) <- ti (apply sc' env) e1
+    (s2, t2) <- ti (apply s1 env) e2
+    s3 <- mgu (apply s2 t1) (apply s2 t2)
 
-
+    return (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
 
 
 typeInference :: Map.Map String Scheme -> Exp -> TI Type
@@ -228,6 +238,13 @@ e6  =  EApp (ELit (LInt 2)) (ELit (LInt 2))
 
 
 
+e7  = EIf (ELit $ LBool True) (ELit $ LInt 4) (ELit $ LInt 5)
+
+e8  = EIf (ELit $ LBool True) (ELit $ LBool True) (ELit $ LInt 5)
+
+e9  = EIf (ELit $ LInt 5) (ELit $ LBool True) (ELit $ LInt 5)
+
+
 
 
 test :: Exp -> IO ()
@@ -242,7 +259,7 @@ test e =
 
 
 main :: IO ()
-main = mapM_ test [e0, e1, e2, e3, e4, e5, e6]
+main = mapM_ test [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
 -- |Collecting Constraints|
 -- |main = mapM_ test' [e0, e1, e2, e3, e4, e5]|
 
@@ -276,6 +293,11 @@ prExp (EApp e1 e2)     =   prExp e1 PP.<+> prParenExp e2
 prExp (EAbs n e)       =   PP.char '\\' PP.<> PP.text n PP.<+>
                            PP.text "->" PP.<+>
                            prExp e
+
+-- TODO: this is ugly...
+prExp (EIf c e1 e2)    =   PP.text "IF " PP.<+>  PP.text"(" PP.<+> prExp c PP.<+>  PP.text")  then"
+                                        PP.<+>  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")  else"
+                                        PP.<+>  PP.text"(" PP.<+> prExp e2 PP.<+>  PP.text")  endif"
                                                                    
 
 prParenExp    ::  Exp -> PP.Doc

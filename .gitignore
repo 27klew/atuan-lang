@@ -1,5 +1,5 @@
-Atuan/*
-!Atuan/*.*
-Atuan/*.hi
-Atuan/*.o
+*/*
+!*/*.*
+*/*.hi
+*/*.o
 hs/
