@@ -18,13 +18,27 @@ import qualified Text.PrettyPrint as PP
 data Op = OpMul | OpPlus | OpTimes | OpDiv | OpOr | OpAnd  
     deriving(Eq, Ord)
 
+tiOp OpMul = TInt
+tiOp OpPlus = TInt
+tiOp OpTimes = TInt
+tiOp OpDiv = TInt
+tiOp OpOr = TBool
+tiOp OpAnd = TBool
+
+
+data Def = Definition String String Exp 
+
+data Program = Program [Def]
+
 data Exp     =  EVar String
              |  ELit Lit
              |  EApp Exp Exp
              |  EAbs String Exp
              |  ELet String Exp Exp
+             |  ELetRec String Exp Exp
              |  EIf  Exp Exp Exp
              |  EOp  Op Exp Exp
+            --  | EMatch a Ident [PatternBranch' a] TODO pattern match
              deriving (Eq, Ord)
 
 data Lit     =  LInt Integer
@@ -166,6 +180,22 @@ tiLit (LInt _)   =  return (nullSubst, TInt)
 tiLit (LBool _)  =  return (nullSubst, TBool)
 
 
+tiProg :: TypeEnv -> Program -> TI (Subst)
+tiProg env (Program []) = 
+    return nullSubst
+
+tiProg env (Program (def:defs)) = do
+    (s, t, e) <- tiDef env def
+    tiProg e (Program defs)
+
+
+tiDef :: TypeEnv -> Def -> TI (Subst, Type, TypeEnv)
+tiDef env (Definition name args e) = do
+    tv <- newTyVar "a"
+    
+
+    throwError "Not yet implemented"
+
 
 
 ti        ::  TypeEnv -> Exp -> TI (Subst, Type)
@@ -189,6 +219,7 @@ ti env exp@(EApp e1 e2) =
         return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
     `catchError`
     \e -> throwError $ e ++ "\n in " ++ show exp
+
 ti env (ELet x e1 e2) =
     do  (s1, t1) <- ti env e1
         let TypeEnv env' = remove env x
@@ -196,6 +227,21 @@ ti env (ELet x e1 e2) =
             env'' = TypeEnv (Map.insert x t' env')
         (s2, t2) <- ti (apply s1 env'') e2
         return (s1 `composeSubst` s2, t2)
+
+
+ti env (ELetRec x e1 e2) = do 
+    let TypeEnv env' = remove env x
+    tv <- newTyVar "a" 
+    let tv' = Scheme [] tv 
+    (s1, t1) <- ti (TypeEnv $ Map.insert x tv' env') e1
+
+    -- (s1, t1) <- ti env e1
+    let t' = generalize (apply s1 (TypeEnv env')) t1
+    let env'' = TypeEnv (Map.insert x t' env')
+    (s2, t2) <- ti (apply s1 env'') e2
+    return (s1 `composeSubst` s2, t2)
+
+
 ti env (EIf cond e1 e2) = do 
     (sc, tc) <- ti env cond
     sc' <- mgu (apply sc tc) TBool
@@ -205,6 +251,22 @@ ti env (EIf cond e1 e2) = do
     s3 <- mgu (apply s2 t1) (apply s2 t2)
 
     return (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
+
+
+
+ti env (EOp op e1 e2) = do
+    let t = tiOp op    
+    (s1, t1) <- ti env e1
+    (s2, t2) <- ti (apply s1 env) e2
+    s3 <- mgu (apply s2 t1) (apply s2 t2)
+    s3' <- mgu (apply s3 t2) t
+
+    return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
+
+
+
+
+
 
 
 typeInference :: Map.Map String Scheme -> Exp -> TI Type
@@ -247,6 +309,118 @@ e9  = EIf (ELit $ LInt 5) (ELit $ LBool True) (ELit $ LInt 5)
 
 
 
+e10  = EIf (EOp OpOr (ELit $ LBool True) (ELit $ LBool True)) (ELit $ LInt 4) (ELit $ LInt 5)
+
+e11  = EIf (EOp OpOr (ELit $ LInt 4) (ELit $ LBool True)) (ELit $ LBool True) (ELit $ LInt 5)
+
+e12 = EIf (ELit $ LInt 5) (ELit $ LBool True) (ELit $ LInt 5)
+
+
+e13 = ELet "fun" (EAbs "x" 
+        (
+            EIf (ELit $ LBool True) 
+                (EApp (EVar "fun") (ELit $ LInt 5))
+                (ELit $ LInt 5)
+        )
+    ) 
+    (
+        EApp (EVar "fun") (ELit $ LInt 5)
+    )
+
+e14 = ELetRec "fun" (EAbs "x" 
+        (
+            EIf (ELit $ LBool True) 
+                (EApp (EVar "fun") (ELit $ LInt 5))
+                (ELit $ LInt 5)
+        )
+    ) 
+    (
+        EApp (EVar "fun") (ELit $ LInt 5)
+    )
+
+e15 = ELetRec "fun" (EAbs "x" 
+        (
+            EIf (ELit $ LBool True) 
+                (EApp (EVar "fun") (EVar "x"))
+                (EVar "x")
+        )
+    ) 
+    (
+        EApp (EVar "fun") (ELit $ LInt 5)
+    )
+
+
+e16 = ELetRec "fun" (EAbs "x" 
+        (
+            EIf (ELit $ LBool True) 
+                (EApp (EVar "fun") (EVar "x"))
+                (EVar "x")
+        )
+    ) 
+    (
+        (EVar "fun")
+    )
+
+e17 = ELetRec "fun" (EAbs "x" 
+        (
+            EIf (ELit $ LBool True) 
+                (EApp (EVar "fun") (ELit $ LBool True))
+                (EVar "x")
+        )
+    ) 
+    (
+        EApp (EVar "fun") (ELit $ LInt 5)
+    )
+
+
+e18 = ELetRec "double" (EAbs "f" 
+        (
+            EAbs "x"
+            (
+                EApp 
+                    (EVar "f")
+                    (EApp
+                        (EVar "f")
+                        (EVar "x")
+                    )
+            )
+        )
+    ) 
+    (
+        -- EApp 
+            (
+                (EVar "double")
+                -- EApp (EVar "double")
+                -- (
+                --     EAbs "c"
+                --     (
+                --         EVar "c"
+                --     )
+                -- )
+            )  
+        
+        
+            -- (ELit $ LInt 5)
+    )
+
+
+e19 = ELetRec "iter" 
+    (EAbs "f" (
+        EAbs "x" (
+            EAbs "n" (
+                EIf (EVar "n")
+                (EApp (EVar "f") (EVar "x"))
+                (EApp (EApp (EVar "iter") (EVar "f")) (EVar "n"))
+            )
+        )
+    ))
+    (
+        EVar "iter"
+    )
+
+
+
+
 test :: Exp -> IO ()
 test e =
     do  (res, _) <- runTI (typeInference Map.empty e)
@@ -259,7 +433,7 @@ test e =
 
 
 main :: IO ()
-main = mapM_ test [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9]
+main = mapM_ test [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19]
 -- |Collecting Constraints|
 -- |main = mapM_ test' [e0, e1, e2, e3, e4, e5]|
 
@@ -289,6 +463,14 @@ prExp (ELet x b body)  =   PP.text "let" PP.<+>
                            PP.text x PP.<+> PP.text "=" PP.<+>
                            prExp b PP.<+> PP.text "in" PP.$$
                            PP.nest 2 (prExp body)
+
+
+prExp (ELetRec x b body)  =   PP.text "letrec" PP.<+> 
+                           PP.text x PP.<+> PP.text "=" PP.<+>
+                           prExp b PP.<+> PP.text "in" PP.$$
+                           PP.nest 2 (prExp body)
+
+
 prExp (EApp e1 e2)     =   prExp e1 PP.<+> prParenExp e2
 prExp (EAbs n e)       =   PP.char '\\' PP.<> PP.text n PP.<+>
                            PP.text "->" PP.<+>
@@ -298,7 +480,14 @@ prExp (EAbs n e)       =   PP.char '\\' PP.<> PP.text n PP.<+>
 prExp (EIf c e1 e2)    =   PP.text "IF " PP.<+>  PP.text"(" PP.<+> prExp c PP.<+>  PP.text")  then"
                                         PP.<+>  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")  else"
                                         PP.<+>  PP.text"(" PP.<+> prExp e2 PP.<+>  PP.text")  endif"
-                                                                   
+
+prExp (EOp op e1 e2) =  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")"
+                        PP.<+>  prOp op                  
+                        PP.<+>  PP.text"(" PP.<+> prExp e2 PP.<+>  PP.text")"
+
+prOp _ = PP.text "OP"                                                
+
+
 
 prParenExp    ::  Exp -> PP.Doc
 prParenExp t  =   case t of
