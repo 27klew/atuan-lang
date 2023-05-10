@@ -23,3 +23,4 @@ w :: Int = match x with
 
 
 
+main = w;

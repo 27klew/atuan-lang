@@ -6,7 +6,7 @@ module Atuan.Translate where
 
 import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..))
 
-import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda', Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..))
+import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..))
 import Atuan.Abs (BoolLiteral, MulOp)
 
 
@@ -36,7 +36,7 @@ instance Translatable (A.Program' a) where
       A.TopDef a def ->
         let (exp', name) = translateDef def in
         ELetRec  name exp' (translate (A.ProgramText a1 xs))
-      A.TopType a td -> error "Not implemented"
+      A.TopType a td -> error "Type definitions should not be translated."
 
 instance Translatable A.BoolLiteral where
     translate (A.BoolLiteral b) =
@@ -45,7 +45,8 @@ instance Translatable A.BoolLiteral where
 
 instance Translatable (A.Lambda' a) where
   translate :: A.Lambda' a -> Exp
-  translate = error "Not yet implemented"
+  translate (A.AnonymousFunction a (A.Ident i) ids t exp) 
+    = error "Not yet implemented"
 
 
 instance Translatable (A.Val' a) where
@@ -91,11 +92,11 @@ instance Translatable (A.Expr' a) where
 
   translate (A.EApp a e1 []) = translate e1
 
-  translate (A.EApp a e1 (x:xs)) =
+  translate (A.EApp a e1 xs) =
         let e1' = translate e1
-            x' = translate x
+            -- x' = translate x
             xs' = map translate xs in
-        foldr EApp x' xs'
+        foldl EApp e1' xs'
 
   translate (A.Neg a exp) = EUnOp OpNeg (translate exp)
   translate (A.Not a exp) = EUnOp OpNot (translate exp)
@@ -117,3 +118,18 @@ instance Translatable (A.Expr' a) where
 
 
 
+
+test_1 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x"))])
+
+test_2 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x")), (A.EVar () (A.Ident "y"))])
+
+test_3 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x")), (A.EVar () (A.Ident "y")), (A.EVar () (A.Ident "z"))])
+
+
+-- >>> translate test_1
+-- f x
+-- >>> translate test_2
+-- f x y
+
+-- >>> translate test_3
+-- f x y z

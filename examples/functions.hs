@@ -13,3 +13,7 @@ x :: Int -> Int = (lambda x y :: Int -> Int => x*y + 1);
 
 y :: Int -> Int = x 0;
 
+
+main = y;
+
+

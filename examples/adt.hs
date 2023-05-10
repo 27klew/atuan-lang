@@ -34,3 +34,7 @@ data YetAnotherTree x y z where
     YBNode :: a -> (YetAnotherTree a  b ((TypedTree a)))
     YANode :: a -> (YetAnotherTree a [a] b)
 	;
+
+
+main = Node 3 Leaf Leaf;
+

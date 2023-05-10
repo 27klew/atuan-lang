@@ -18,3 +18,5 @@ data SomeType where
 e :: SomeType = SomeInt 123;
 
 
+main = e;
+
