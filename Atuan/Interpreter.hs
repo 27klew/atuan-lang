@@ -34,8 +34,8 @@ import Atuan.TypeCheck (typecheck)
 import Data.List ( (++), map, concat, unlines, intercalate )
 import Data.Map (elems, toList, keys, Map, lookup)
 
-
-
+import Atuan.Translate (Translatable (translate))
+import qualified Atuan.AlgorithmW  as W (ti, test)
 
 type Err        = Either String
 type ParseFun a = [Token] -> Err a
@@ -120,16 +120,28 @@ run v p s =
           putStrLn $
             ndash "types"  ++ showTypes map
         
-      let Right types' = types
-      let typed = typecheck types' tree
+      -- let Right types' = types
+      -- let typed = typecheck types' tree
 
       putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
-      case  typed of
-        Left str -> putStrLn $ "error: " ++ str
-        Right typed' -> do
-          putStrLn "\n\n\n\nTypeCheck Successful!"
-          showTree v typed'
+      -- case  typed of
+      --   Left str -> putStrLn $ "error: " ++ str
+      --   Right typed' -> do
+      --     putStrLn "\n\n\n\nTypeCheck Successful!"
+      --     showTree v typed'
+      
+      let treeExp = translate tree 
+
+      putStrLn $ show treeExp
+
+      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+
+
+      W.test treeExp
+
+      -- let typed = ti  treeExp
 
       putStrLn "\n\n\nThat's It!"
   where

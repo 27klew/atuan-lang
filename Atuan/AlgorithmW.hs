@@ -1,3 +1,4 @@
+module Atuan.AlgorithmW where
 
 
 import qualified Data.Map as Map
@@ -37,13 +38,19 @@ data Exp     =  EVar String
             --  EMatch a Ident [PatternBranch' a]
 
 data OpUn = OpNeg | OpNot deriving (Eq, Ord)
-data OpBin = OpMul ()| OpAdd () | OpRel () | OpAnd | OpOr deriving (Eq, Ord)
+data OpBin = OpMul MulOp | OpAdd AddOp | OpRel RelOp | OpAnd | OpOr deriving (Eq, Ord)
+
+data MulOp = Times | Div | Mod deriving (Eq, Ord)
+
+data AddOp = Plus  | Minus deriving (Eq, Ord)
+
+data RelOp = LTH  | LE  | GTH  | GE  | EQU | NE deriving (Eq, Ord) 
 
 
 tiOpBin :: OpBin -> Type
 tiOpBin (OpMul _) = TInt
 tiOpBin (OpAdd _) = TInt
-tiOpBin (OpRel _) = TInt
+tiOpBin (OpRel _) = TBool
 tiOpBin OpOr = TBool
 tiOpBin OpAnd = TBool
 
@@ -275,9 +282,14 @@ ti env (EBinOp e1 op e2) = do
     (s1, t1) <- ti env e1
     (s2, t2) <- ti (apply s1 env) e2
     s3 <- mgu (apply s2 t1) (apply s2 t2)
-    s3' <- mgu (apply s3 t2) t
 
-    return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
+    -- s3' <- mgu (apply s3 t2) t
+
+    return (s3 `composeSubst` s2 `composeSubst` s1, t)
+
+    -- old:
+    -- s3' <- mgu (apply s3 t2) t
+    -- return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
 
 
 ti env (EUnOp op e) = do
