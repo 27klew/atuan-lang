@@ -95,8 +95,10 @@ instance Types Type where
                                Nothing  -> TVar n
                                Just t   -> t
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
-    apply s t             =  t
 
+    apply s TInt             =  TInt
+    apply s TBool            =  TBool
+    apply s (ADT name ts)    =  ADT name (map (apply s) ts)
 
 
 instance Types Scheme where
@@ -171,8 +173,15 @@ instantiate (Scheme vars t) = do  nvars <- mapM (\ _ -> newTyVar "a") vars
                                   let s = Map.fromList (zip vars nvars)
                                   return $ apply s t
 
+mguList :: [Type] -> [Type] -> TI Subst
+mguList [] [] = return nullSubst
+mguList (t1:ts1) (t2:ts2) = do 
+    s <- mgu t1 t2
+    sl <- mguList (map (apply s) ts1) (map (apply s) ts2) 
+    
+    return $ sl `composeSubst` s
 
-
+mguList _ _ = throwError "Different number of type arguments."
 
 
 mgu :: Type -> Type -> TI Subst
@@ -183,6 +192,15 @@ mgu (TVar u) t               =  varBind u t
 mgu t (TVar u)               =  varBind u t
 mgu TInt TInt                =  return nullSubst
 mgu TBool TBool              =  return nullSubst
+mgu (ADT name1 ts1) (ADT name2 ts2) = do
+        unless (name1 == name2)
+            (throwError $ "Types " ++ name1 ++ " and " ++ name2 ++ "cannot be unified.")
+        unless (length ts1 == length ts2)
+            (throwError $ "ADTS: " ++ name1 ++ "and " ++ name2 ++ " have different number of arguments" )
+
+        mguList ts1 ts2
+
+
 mgu t1 t2                    =  throwError $ "types do not unify: " ++ show t1 ++
                                 " vs. " ++ show t2
 
@@ -196,10 +214,20 @@ varBind u t  | t == TVar u           =  return nullSubst
 
 
 
-tiLit :: Lit -> TI (Subst, Type)
-tiLit (LInt _)   =  return (nullSubst, TInt)
-tiLit (LBool _)  =  return (nullSubst, TBool)
--- tiLit (LList []) =  return 
+tiLit :: TypeEnv -> Lit -> TI (Subst, Type)
+tiLit env (LInt _)   =  return (nullSubst, TInt)
+tiLit env (LBool _)  =  return (nullSubst, TBool)
+tiLit env (LList []) =  do
+    tv <- newTyVar "a"
+    return (nullSubst, ADT "List" [tv])
+
+tiLit env (LList (x:xs)) = do
+    (s, t) <- ti env x
+    (sl, tl) <- tiLit (apply s env) (LList xs)
+    s3 <- mgu tl (ADT "List" [apply sl t])
+
+    return (s3 `composeSubst` sl `composeSubst` s, apply s3 tl)
+
 
 
 
@@ -227,7 +255,7 @@ ti (TypeEnv env) (EVar n) =
        Nothing     ->  throwError $ "unbound variable: " ++ n
        Just sigma  ->  do  t <- instantiate sigma
                            return (nullSubst, t)
-ti _ (ELit l) = tiLit l
+ti env (ELit l) = tiLit env l
 ti env (EAbs n e) =
     do  tv <- newTyVar "a"
         let TypeEnv env' = remove env n

@@ -4,9 +4,9 @@
 
 module Atuan.Translate where
 
-import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..))
+import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..))
 
-import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda', Val', MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..))
+import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda', Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..))
 import Atuan.Abs (BoolLiteral, MulOp)
 
 
@@ -26,7 +26,7 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) =
     let ids' = map iname ids in
     case ids' of 
         [] -> (exp', i)
-        (id:iss) -> (app, i) 
+        iss -> (app, i) 
             where app = foldr EAbs exp' iss 
 
 instance Translatable (A.Program' a) where
@@ -50,7 +50,7 @@ instance Translatable (A.Lambda' a) where
 
 instance Translatable (A.Val' a) where
   translate :: A.Val' a -> Exp
-  translate = error "Not yet implemented"
+  translate (A.ValList a expr) = translate expr
 
 
 class TranslatableOp a where
@@ -74,7 +74,9 @@ instance TranslatableOp (A.RelOp' a) where
       A.NE a -> OpRel NE
 
 instance TranslatableOp (A.AddOp' a) where
-    translateOp = undefined
+    translateOp op = case op of
+      A.Plus a -> OpAdd Plus
+      A.Minus a -> OpAdd Minus
 
 
 
