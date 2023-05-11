@@ -45,9 +45,9 @@ instance Translatable A.BoolLiteral where
 
 instance Translatable (A.Lambda' a) where
   translate :: A.Lambda' a -> Exp
-  translate (A.AnonymousFunction a ids t exp) 
-    = error "Not yet implemented"
-
+  translate (A.AnonymousFunction a ids t exp) = do
+    let (exp', _) = translateDef (A.DefinitionT a (A.Ident "__anonymous__") ids t exp) in
+      exp'
 
 instance Translatable (A.Val' a) where
   translate :: A.Val' a -> Exp

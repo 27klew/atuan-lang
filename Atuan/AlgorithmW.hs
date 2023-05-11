@@ -47,17 +47,30 @@ data AddOp = Plus  | Minus deriving (Eq, Ord)
 data RelOp = LTH  | LE  | GTH  | GE  | EQU | NE deriving (Eq, Ord) 
 
 
-tiOpBin :: OpBin -> Type
-tiOpBin (OpMul _) = TInt
-tiOpBin (OpAdd _) = TInt
-tiOpBin (OpRel _) = TBool
-tiOpBin OpOr = TBool
-tiOpBin OpAnd = TBool
+opBinRes :: OpBin -> Type
+opBinRes (OpMul _) = TInt
+opBinRes (OpAdd _) = TInt
+opBinRes (OpRel _) = TBool
+opBinRes OpOr = TBool
+opBinRes OpAnd = TBool
 
-tiOpUn :: OpUn -> Type
-tiOpUn OpNeg = TInt
-tiOpUn OpNot = TBool
 
+opBinArg :: OpBin -> Type
+opBinArg (OpMul _) = TInt
+opBinArg (OpAdd _) = TInt
+opBinArg (OpRel _) = TInt
+opBinArg OpOr = TBool
+opBinArg OpAnd = TBool
+
+
+opUnRes :: OpUn -> Type
+opUnRes OpNeg = TInt
+opUnRes OpNot = TBool
+
+
+opUnArg :: OpUn -> Type
+opUnArg OpNeg = TInt
+opUnArg OpNot = TBool
 
 data Lit     =  LInt Integer
              |  LBool Bool
@@ -306,14 +319,17 @@ ti env (EIf cond e1 e2) = do
 
 
 ti env (EBinOp e1 op e2) = do
-    let t = tiOpBin op
+    let ta = opBinArg op
     (s1, t1) <- ti env e1
     (s2, t2) <- ti (apply s1 env) e2
     s3 <- mgu (apply s2 t1) (apply s2 t2)
+    s4 <- mgu (apply s3 t1) ta
 
     -- s3' <- mgu (apply s3 t2) t
 
-    return (s3 `composeSubst` s2 `composeSubst` s1, t)
+    let tr = opBinRes op
+
+    return (s4 `composeSubst` s3 `composeSubst` s2 `composeSubst` s1, tr)
 
     -- old:
     -- s3' <- mgu (apply s3 t2) t
@@ -321,11 +337,13 @@ ti env (EBinOp e1 op e2) = do
 
 
 ti env (EUnOp op e) = do
-    let t = tiOpUn op
+    let targ = opUnArg op
     (s1, t1) <- ti env e
-    s2 <- mgu (apply s1 t1) t
+    s2 <- mgu (apply s1 t1) targ
 
-    return (s2 `composeSubst` s1, apply s2 t1)
+    let tres = opUnRes op
+
+    return (s2 `composeSubst` s1, apply s2 tres)
 
 
 
