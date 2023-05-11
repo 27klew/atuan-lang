@@ -77,17 +77,19 @@ All other symbols are terminals.
   |  |  **|**  | //OTIdent// //[OTIdent]//
   | //Block// | -> | ``{`` //Expr// ``}``
   | //Lambda// | -> | ``(lambda`` //[OTIdent]// //OptTypeAnnot// ``=>`` //Expr// ``)``
-  | //Expr8// | -> | //Ident//
+  | //Expr9// | -> | //Ident//
   |  |  **|**  | //Integer//
   |  |  **|**  | //BoolLiteral//
-  |  |  **|**  | //Lambda//
   |  |  **|**  | ``[`` //[Val]// ``]``
   |  |  **|**  | ``(`` //Expr// ``)``
-  | //Val// | -> | //Expr8//
+  | //Expr8// | -> | //Lambda//
+  |  |  **|**  | //Expr9//
+  |  |  **|**  | //Expr9// ``:`` //Expr9//
+  | //Val// | -> | //Expr9//
   | //[Val]// | -> | **eps**
   |  |  **|**  | //Val//
   |  |  **|**  | //Val// ``,`` //[Val]//
-  | //Expr7// | -> | //Expr8// //[Expr8]//
+  | //Expr7// | -> | //Expr9// //[Expr9]//
   |  |  **|**  | //Expr8//
   | //Expr6// | -> | ``-`` //Expr7//
   |  |  **|**  | ``!`` //Expr7//
@@ -111,8 +113,8 @@ All other symbols are terminals.
   | //Expr// | -> | //Expr1//
   | //[Expr]// | -> | **eps**
   |  |  **|**  | //Expr// //[Expr]//
-  | //[Expr8]// | -> | //Expr8//
-  |  |  **|**  | //Expr8// //[Expr8]//
+  | //[Expr9]// | -> | //Expr9//
+  |  |  **|**  | //Expr9// //[Expr9]//
   | //AddOp// | -> | ``+``
   |  |  **|**  | ``-``
   | //MulOp// | -> | ``*``

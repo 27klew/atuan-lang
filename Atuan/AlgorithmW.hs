@@ -14,6 +14,7 @@ import Control.Monad.State
 
 
 import qualified Text.PrettyPrint as PP
+import qualified Data.Map
 
 
 data Def = Definition String String Exp
@@ -138,7 +139,7 @@ composeSubst s1 s2   = Map.map (apply s1) s2 `Map.union` s1
 
 
 
-newtype TypeEnv = TypeEnv (Map.Map String Scheme)
+newtype TypeEnv = TypeEnv (Map.Map String Scheme) deriving (Show)
 
 
 
@@ -512,6 +513,29 @@ test e =
 
 
 
+defaultEnv :: TypeEnv 
+defaultEnv = TypeEnv $ Data.Map.fromList 
+        [
+            (
+            "cons", 
+            Scheme ["__l"] (TFun (TVar "__l") (TFun (ADT "List" [TVar "__l"]) (ADT "List" [TVar "__l"])) )
+            )
+        ]
+
+
+unionEnv :: TypeEnv -> TypeEnv -> TypeEnv
+unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Data.Map.union e1 e2) 
+
+
+testEnv :: TypeEnv -> Exp -> IO ()
+testEnv env e =
+    let TypeEnv env' = unionEnv defaultEnv env in
+    do  (res, _) <- runTI (typeInference env' e)
+        case res of
+          Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
+          Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
+
+testDefault = testEnv defaultEnv
 
 
 main :: IO ()

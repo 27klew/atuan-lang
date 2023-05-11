@@ -68,7 +68,7 @@ data Block' a = CurlyBlock a (Expr' a)
 
 type Lambda = Lambda' BNFC'Position
 data Lambda' a
-    = AnonymousFunction a Ident [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
+    = AnonymousFunction a [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Expr = Expr' BNFC'Position
@@ -89,6 +89,7 @@ data Expr' a
     | EMatch a Ident [PatternBranch' a]
     | EIf a (Expr' a) (Expr' a) (Expr' a)
     | ELet a (Def' a) (Expr' a)
+    | ConsLit a (Expr' a) Integer
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Val = Val' BNFC'Position
@@ -143,7 +144,6 @@ data Type' a
     | TypeIdent a Ident
     | TypeApp a Ident [Type' a]
     | TypeFunc a (Type' a) (Type' a)
-    | TypeVar a Ident 
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 newtype Ident = Ident String
@@ -216,7 +216,7 @@ instance HasPosition Block where
 
 instance HasPosition Lambda where
   hasPosition = \case
-    AnonymousFunction p _ _ _ _ -> p
+    AnonymousFunction p _ _ _ -> p
 
 instance HasPosition Expr where
   hasPosition = \case
@@ -236,6 +236,7 @@ instance HasPosition Expr where
     EMatch p _ _ -> p
     EIf p _ _ _ -> p
     ELet p _ _ -> p
+    ConsLit p _ _ -> p
 
 instance HasPosition Val where
   hasPosition = \case

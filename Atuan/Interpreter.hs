@@ -18,24 +18,24 @@ import Prelude
   , IO, (>>), (>>=), mapM_, putStrLn
   , FilePath
   , getContents, readFile, print
-  , map, Maybe (..)
+  , map, Maybe (..), Bool (..), not
   )
 import System.Environment ( getArgs )
 import System.Exit        ( exitFailure )
 import Control.Monad      ( when )
 
-import Atuan.Abs   (Program, TVar' (TypeVariable), Constr' (DataConstructor), Ident (..), Type' (TypeVar), TypeAnnot' (TypeAnnotation))
+import Atuan.Abs   (Program, TVar' (TypeVariable), Constr' (DataConstructor), Ident (..), Type' (TypeVar), TypeAnnot' (TypeAnnotation), Top' (..), Program' (..))
 import Atuan.Lex   ( Token, mkPosToken )
 import Atuan.Par   ( pProgram, myLexer )
 import Atuan.Print ( Print, printTree )
 import Atuan.Skel  ()
 import Atuan.CollectTypes ( collect , ADTs (ADTs, from_name, from_constr), ADT (ADT) )
 import Atuan.TypeCheck (typecheck)
-import Data.List ( (++), map, concat, unlines, intercalate )
-import Data.Map (elems, toList, keys, Map, lookup)
+import Data.List ( (++), map, concat, unlines, intercalate, filter )
+import Data.Map (elems, toList, keys, Map, lookup, filter)
 
-import Atuan.Translate (Translatable (translate))
-import qualified Atuan.AlgorithmW  as W (ti, test)
+import Atuan.Translate (Translatable (translate), translateConstrs)
+import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv)
 
 type Err        = Either String
 type ParseFun a = [Token] -> Err a
@@ -59,8 +59,8 @@ showVars vars =
   show $ map (\(TypeVariable _ (Ident n)) -> n) vars
 
 
-showConstructor (DataConstructor _ (Ident n) (TypeAnnotation _ t)) = 
-    "cname: " ++ n ++ 
+showConstructor (DataConstructor _ (Ident n) (TypeAnnotation _ t)) =
+    "cname: " ++ n ++
     "\n\ttype: " ++  show t
 
 
@@ -97,6 +97,11 @@ ndashes = "\n" ++ dashes ++ "\n"
 ndash s = ndashes ++ dashes ++ "\n\n\t\t\t\t" ++ s ++ "\n" ++ dashes ++ ndashes
 
 
+isType :: Top' a -> Bool
+isType t = case t of
+  TopDef a de -> False
+  TopType a td -> True
+
 
 run ::  Verbosity -> ParseFun Program -> String -> IO ()
 run v p s =
@@ -112,38 +117,45 @@ run v p s =
       showTree v tree
       putStrLn "\nSummary!"
 
+      let (ProgramText a tops) = tree 
+
       let types = collect tree
+      let defs = ProgramText a $  Data.List.filter(not . isType) tops
+
 
       case  types of
         Left str -> putStrLn $ "error: " ++ str
-        Right map ->
-          putStrLn $
-            ndash "types"  ++ showTypes map
-        
+        Right map -> do
+          putStrLn $ ndash "types"  ++ showTypes map
+          let types = translateConstrs map
+          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes ++ "types again" ++ ndashes
+          print types
+
+
       -- let Right types' = types
       -- let typed = typecheck types' tree
 
-      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
       -- case  typed of
       --   Left str -> putStrLn $ "error: " ++ str
       --   Right typed' -> do
       --     putStrLn "\n\n\n\nTypeCheck Successful!"
       --     showTree v typed'
-      
-      let treeExp = translate tree 
 
-      putStrLn $ show treeExp
+          let treeExp = translate defs
 
-      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
-      putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+          putStrLn $ show treeExp
+
+          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
 
-      W.test treeExp
+          W.testEnv types treeExp
 
       -- let typed = ti  treeExp
 
-      putStrLn "\n\n\nThat's It!"
+          putStrLn "\n\n\nThat's It!"
   where
   ts = myLexer s
   showPosToken ((l,c),t) = concat [ show l, ":", show c, "\t", show t ]

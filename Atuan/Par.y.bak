@@ -152,19 +152,24 @@ Block
 
 Lambda :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Lambda) }
 Lambda
-  : '(lambda' Ident ListOTIdent OptTypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunction (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $4) (snd $6)) }
+  : '(lambda' ListOTIdent OptTypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunction (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $5)) }
 
-Expr8 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
-Expr8
+Expr9 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
+Expr9
   : Ident { (fst $1, Atuan.Abs.EVar (fst $1) (snd $1)) }
   | Integer { (fst $1, Atuan.Abs.ELitInt (fst $1) (snd $1)) }
   | BoolLiteral { (fst $1, Atuan.Abs.ELitBool (fst $1) (snd $1)) }
-  | Lambda { (fst $1, Atuan.Abs.ELambda (fst $1) (snd $1)) }
   | '[' ListVal ']' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.ELitList (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
   | '(' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), (snd $2)) }
 
+Expr8 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
+Expr8
+  : Lambda { (fst $1, Atuan.Abs.ELambda (fst $1) (snd $1)) }
+  | Expr9 { (fst $1, (snd $1)) }
+  | '(' Expr9 ':' Expr9 ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.ConsLit (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+
 Val :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Val) }
-Val : Expr8 { (fst $1, Atuan.Abs.ValList (fst $1) (snd $1)) }
+Val : Expr9 { (fst $1, Atuan.Abs.ValList (fst $1) (snd $1)) }
 
 ListVal :: { (Atuan.Abs.BNFC'Position, [Atuan.Abs.Val]) }
 ListVal
@@ -174,7 +179,7 @@ ListVal
 
 Expr7 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
 Expr7
-  : Expr8 ListExpr8 { (fst $1, Atuan.Abs.EApp (fst $1) (snd $1) (snd $2)) }
+  : Expr9 ListExpr9 { (fst $1, Atuan.Abs.EApp (fst $1) (snd $1) (snd $2)) }
   | Expr8 { (fst $1, (snd $1)) }
 
 Expr6 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
@@ -228,10 +233,10 @@ ListExpr
   : {- empty -} { (Atuan.Abs.BNFC'NoPosition, []) }
   | Expr ListExpr { (fst $1, (:) (snd $1) (snd $2)) }
 
-ListExpr8 :: { (Atuan.Abs.BNFC'Position, [Atuan.Abs.Expr]) }
-ListExpr8
-  : Expr8 { (fst $1, (:[]) (snd $1)) }
-  | Expr8 ListExpr8 { (fst $1, (:) (snd $1) (snd $2)) }
+ListExpr9 :: { (Atuan.Abs.BNFC'Position, [Atuan.Abs.Expr]) }
+ListExpr9
+  : Expr9 { (fst $1, (:[]) (snd $1)) }
+  | Expr9 ListExpr9 { (fst $1, (:) (snd $1) (snd $2)) }
 
 AddOp :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.AddOp) }
 AddOp

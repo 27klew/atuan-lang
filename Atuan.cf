@@ -57,21 +57,21 @@ CurlyBlock. Block ::= "{" Expr "}" ;
 AnonymousFunction. Lambda ::= "(lambda" [OTIdent] OptTypeAnnot "=>" Expr ")" ;
 
 
-EVar.      Expr8 ::= Ident ;
+EVar.      Expr9 ::= Ident ;
 
-ELitInt.   Expr8 ::= Integer ;
+ELitInt.   Expr9 ::= Integer ;
 
-ELitBool.  Expr8 ::= BoolLiteral ;
+ELitBool.  Expr9 ::= BoolLiteral ;
 
 ELambda.   Expr8 ::= Lambda ;
 
-ValList.   Val ::= Expr8 ;
+ValList.   Val ::= Expr9 ;
 
-ELitList.  Expr8 ::= "[" [Val] "]" ;
+ELitList.  Expr9 ::= "[" [Val] "]" ;
 
 separator Val "," ;
 
-EApp.      Expr7 ::= Expr8 [Expr8];
+EApp.      Expr7 ::= Expr9 [Expr9];
 
 
 Neg.       Expr6 ::= "-" Expr7 ;
@@ -101,11 +101,11 @@ BranchPattern. PatternBranch ::= "(" Pattern ")" ">>>" Expr2 ;
 separator nonempty PatternBranch "," ;
 
 
-coercions  Expr 8 ;
+coercions  Expr 9 ;
 
 separator  Expr " " ;
 
-separator nonempty Expr8 " " ;
+separator nonempty Expr9 " " ;
 
 
 -- operators -----------------------------------------------
@@ -167,6 +167,8 @@ IntLit. Literal ::= Integer ;
 BoolLit. Literal ::= BoolLiteral ;
 
 LiteralList. Literal ::= "[" [Literal] "]" ;
+
+ConsLit.	Expr8 ::=    Expr9 ":" Expr9 ;
 
 separator Literal "," ;
 

@@ -4,12 +4,13 @@
 
 module Atuan.Translate where
 
-import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..))
+import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize)
 
-import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..))
-import Atuan.Abs (BoolLiteral, MulOp)
+import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..))
+import Atuan.Abs (BoolLiteral, MulOp, Constr'(..))
 
-
+import Atuan.CollectTypes (ADTs(..))
+import qualified Data.Map (toList, empty, fromList)
 
 class Translatable a where
     translate :: a -> Exp
@@ -24,10 +25,10 @@ translateDef :: A.Def' a -> (Exp, String)
 translateDef (A.DefinitionT a (A.Ident i) ids t exp) =
     let exp' = translate exp in
     let ids' = map iname ids in
-    case ids' of 
+    case ids' of
         [] -> (exp', i)
-        iss -> (app, i) 
-            where app = foldr EAbs exp' iss 
+        iss -> (app, i)
+            where app = foldr EAbs exp' iss
 
 instance Translatable (A.Program' a) where
     translate (A.ProgramText _ []) =
@@ -112,6 +113,8 @@ instance Translatable (A.Expr' a) where
         ELet name exp' (translate exp)
 
   translate A.EMatch {} = error "Not implemented translation for match"
+  translate (A.ConsLit a x xs) =
+     translate (A.EApp a (A.EVar a (A.Ident "cons")) [x, xs])
 
     -- TODO add match
     -- EMatch a Ident [PatternBranch' a]
@@ -125,6 +128,44 @@ test_2 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x")), (A.EVa
 
 test_3 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x")), (A.EVar () (A.Ident "y")), (A.EVar () (A.Ident "z"))])
 
+
+
+translateType2 :: A.Type' a -> Type
+translateType2 t = case t of
+  A.TypeInt a -> TInt
+  A.TypeBool a -> TBool
+  A.TypeList a ty -> ADT "List" [translateType2 ty]
+  A.TypeIdent a id -> ADT (itname id) []
+  A.TypeApp a id tys -> ADT (itname id) (map translateType2 tys)
+  A.TypeFunc a ty ty' -> TFun (translateType2 ty) (translateType2 ty')
+  A.TypeVar a id -> TVar (itname id)
+
+
+translateType :: A.TypeAnnot' a -> Type
+translateType t = case t of
+    A.TypeAnnotation a ty -> translateType2 ty
+
+
+
+translateConstr ::  A.Constr' a -> Scheme
+translateConstr con = case con of
+   DataConstructor a id ta ->
+    let ta' = translateType ta in
+    -- let name = itname id in
+      generalize (TypeEnv Data.Map.empty) ta'
+
+
+itname :: A.Ident -> String
+itname (A.Ident i) = i
+
+translateConstrs :: ADTs a -> TypeEnv
+translateConstrs adt =
+  let cs = from_constr adt in
+  let cs' = Data.Map.toList cs in
+  let names = map (itname . fst) cs' in
+  let css = map (translateConstr . snd) cs' in
+    TypeEnv $ Data.Map.fromList (zip names css)
+    -- foldr Data.Map.insert Data.Map.empty (zip (map translateConstr cs') (map fst ))
 
 -- >>> translate test_1
 -- f x
