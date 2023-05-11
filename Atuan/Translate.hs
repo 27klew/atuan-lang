@@ -45,7 +45,7 @@ instance Translatable A.BoolLiteral where
 
 instance Translatable (A.Lambda' a) where
   translate :: A.Lambda' a -> Exp
-  translate (A.AnonymousFunction a (A.Ident i) ids t exp) 
+  translate (A.AnonymousFunction a ids t exp) 
     = error "Not yet implemented"
 
 

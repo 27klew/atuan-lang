@@ -72,7 +72,7 @@ transBlock x = case x of
 
 transLambda :: Show a => Atuan.Abs.Lambda' a -> Result
 transLambda x = case x of
-  Atuan.Abs.AnonymousFunction _ otidents opttypeannot expr -> failure x
+  Atuan.Abs.AnonymousFunction _ ident otidents opttypeannot expr -> failure x
 
 transExpr :: Show a => Atuan.Abs.Expr' a -> Result
 transExpr x = case x of

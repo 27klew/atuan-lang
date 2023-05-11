@@ -152,7 +152,7 @@ Block
 
 Lambda :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Lambda) }
 Lambda
-  : '(lambda' ListOTIdent OptTypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunction (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $5)) }
+  : '(lambda' Ident ListOTIdent OptTypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunction (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $4) (snd $6)) }
 
 Expr8 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
 Expr8

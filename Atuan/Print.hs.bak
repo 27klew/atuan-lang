@@ -206,7 +206,7 @@ instance Print [Atuan.Abs.Ident] where
 
 instance Print [Atuan.Abs.OTIdent' a] where
   prt _ [] = concatD []
-  prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
+  prt _ (x:xs) = concatD [prt 0 x, prt 0 xs]
 
 instance Print (Atuan.Abs.Block' a) where
   prt i = \case
@@ -214,7 +214,7 @@ instance Print (Atuan.Abs.Block' a) where
 
 instance Print (Atuan.Abs.Lambda' a) where
   prt i = \case
-    Atuan.Abs.AnonymousFunction _ otidents opttypeannot expr -> prPrec i 0 (concatD [doc (showString "(lambda"), prt 0 otidents, prt 0 opttypeannot, doc (showString "=>"), prt 0 expr, doc (showString ")")])
+    Atuan.Abs.AnonymousFunction _ id_ otidents opttypeannot expr -> prPrec i 0 (concatD [doc (showString "(lambda"), prt 0 id_, prt 0 otidents, prt 0 opttypeannot, doc (showString "=>"), prt 0 expr, doc (showString ")")])
 
 instance Print (Atuan.Abs.Expr' a) where
   prt i = \case

@@ -68,7 +68,7 @@ data Block' a = CurlyBlock a (Expr' a)
 
 type Lambda = Lambda' BNFC'Position
 data Lambda' a
-    = AnonymousFunction a Ident [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
+    = AnonymousFunction a [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Expr = Expr' BNFC'Position
@@ -216,7 +216,7 @@ instance HasPosition Block where
 
 instance HasPosition Lambda where
   hasPosition = \case
-    AnonymousFunction p _ _ _ _ -> p
+    AnonymousFunction p _ _ _ -> p
 
 instance HasPosition Expr where
   hasPosition = \case

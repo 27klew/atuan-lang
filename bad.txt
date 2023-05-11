@@ -43,7 +43,7 @@ Grammar
 	ListOTIdent ->                                     (25)
 	ListOTIdent -> OTIdent ListOTIdent                 (26)
 	Block -> '{' Expr '}'                              (27)
-	Lambda -> '(lambda' Ident ListOTIdent OptTypeAnnot '=>' Expr ')'   (28)
+	Lambda -> '(lambda' ListOTIdent OptTypeAnnot '=>' Expr ')'   (28)
 	Expr8 -> Ident                                     (29)
 	Expr8 -> Integer                                   (30)
 	Expr8 -> BoolLiteral                               (31)
@@ -1102,11 +1102,17 @@ State 55
 
 State 56
 
-	Lambda -> '(lambda' . Ident ListOTIdent OptTypeAnnot '=>' Expr ')'    (rule 28)
+	Lambda -> '(lambda' . ListOTIdent OptTypeAnnot '=>' Expr ')'    (rule 28)
 
+	'('            shift, and enter state 16
+	'::'           reduce using rule 25
+	'=>'           reduce using rule 25
 	L_Ident        shift, and enter state 2
 
-	Ident          goto state 86
+	Ident          goto state 12
+	TIdent         goto state 13
+	OTIdent        goto state 14
+	ListOTIdent    goto state 86
 
 State 57
 
@@ -1501,17 +1507,13 @@ State 85
 
 State 86
 
-	Lambda -> '(lambda' Ident . ListOTIdent OptTypeAnnot '=>' Expr ')'    (rule 28)
+	Lambda -> '(lambda' ListOTIdent . OptTypeAnnot '=>' Expr ')'    (rule 28)
 
-	'('            shift, and enter state 16
-	'::'           reduce using rule 25
-	'=>'           reduce using rule 25
-	L_Ident        shift, and enter state 2
+	'::'           shift, and enter state 20
+	'=>'           reduce using rule 20
 
-	Ident          goto state 12
-	TIdent         goto state 13
-	OTIdent        goto state 14
-	ListOTIdent    goto state 114
+	TypeAnnot      goto state 18
+	OptTypeAnnot   goto state 114
 
 State 87
 
@@ -2039,13 +2041,10 @@ State 113
 
 State 114
 
-	Lambda -> '(lambda' Ident ListOTIdent . OptTypeAnnot '=>' Expr ')'    (rule 28)
+	Lambda -> '(lambda' ListOTIdent OptTypeAnnot . '=>' Expr ')'    (rule 28)
 
-	'::'           shift, and enter state 20
-	'=>'           reduce using rule 20
+	'=>'           shift, and enter state 128
 
-	TypeAnnot      goto state 18
-	OptTypeAnnot   goto state 128
 
 State 115
 
@@ -2246,14 +2245,7 @@ State 127
 
 State 128
 
-	Lambda -> '(lambda' Ident ListOTIdent OptTypeAnnot . '=>' Expr ')'    (rule 28)
-
-	'=>'           shift, and enter state 129
-
-
-State 129
-
-	Lambda -> '(lambda' Ident ListOTIdent OptTypeAnnot '=>' . Expr ')'    (rule 28)
+	Lambda -> '(lambda' ListOTIdent OptTypeAnnot '=>' . Expr ')'    (rule 28)
 
 	'!'            shift, and enter state 54
 	'('            shift, and enter state 55
@@ -2279,7 +2271,14 @@ State 129
 	Expr3          goto state 50
 	Expr2          goto state 51
 	Expr1          goto state 52
-	Expr           goto state 157
+	Expr           goto state 129
+
+State 129
+
+	Lambda -> '(lambda' ListOTIdent OptTypeAnnot '=>' Expr . ')'    (rule 28)
+
+	')'            shift, and enter state 157
+
 
 State 130
 
@@ -2488,7 +2487,7 @@ State 147
 	ListLiteral -> Literal .                            (rule 95)
 	ListLiteral -> Literal . ',' ListLiteral            (rule 96)
 
-	','            shift, and enter state 164
+	','            shift, and enter state 163
 	']'            reduce using rule 95
 
 
@@ -2496,21 +2495,21 @@ State 148
 
 	Literal -> '[' ListLiteral . ']'                    (rule 93)
 
-	']'            shift, and enter state 163
+	']'            shift, and enter state 162
 
 
 State 149
 
 	Pattern5 -> '(' Pattern . ')'                       (rule 79)
 
-	')'            shift, and enter state 162
+	')'            shift, and enter state 161
 
 
 State 150
 
 	PatternBranch -> '(' Pattern ')' . '>>>' Expr2      (rule 57)
 
-	'>>>'          shift, and enter state 161
+	'>>>'          shift, and enter state 160
 
 
 State 151
@@ -2527,7 +2526,7 @@ State 151
 	Integer        goto state 132
 	BoolLiteral    goto state 133
 	Pattern5       goto state 135
-	Pattern4       goto state 160
+	Pattern4       goto state 159
 	Literal        goto state 141
 
 State 152
@@ -2573,7 +2572,7 @@ State 154
 	BoolLiteral    goto state 133
 	Pattern5       goto state 153
 	Field          goto state 154
-	ListField      goto state 159
+	ListField      goto state 158
 	Literal        goto state 141
 
 State 155
@@ -2595,14 +2594,7 @@ State 156
 
 State 157
 
-	Lambda -> '(lambda' Ident ListOTIdent OptTypeAnnot '=>' Expr . ')'    (rule 28)
-
-	')'            shift, and enter state 158
-
-
-State 158
-
-	Lambda -> '(lambda' Ident ListOTIdent OptTypeAnnot '=>' Expr ')' .    (rule 28)
+	Lambda -> '(lambda' ListOTIdent OptTypeAnnot '=>' Expr ')' .    (rule 28)
 
 	'!='           reduce using rule 28
 	'%'            reduce using rule 28
@@ -2632,7 +2624,7 @@ State 158
 	L_BoolLiteral  reduce using rule 28
 
 
-State 159
+State 158
 
 	ListField -> Field ListField .                      (rule 90)
 
@@ -2640,14 +2632,14 @@ State 159
 	':'            reduce using rule 90
 
 
-State 160
+State 159
 
 	ListPattern -> Pattern4 ':' Pattern4 .              (rule 77)
 
 	')'            reduce using rule 77
 
 
-State 161
+State 160
 
 	PatternBranch -> '(' Pattern ')' '>>>' . Expr2      (rule 57)
 
@@ -2670,9 +2662,9 @@ State 161
 	Expr5          goto state 48
 	Expr4          goto state 49
 	Expr3          goto state 50
-	Expr2          goto state 166
+	Expr2          goto state 165
 
-State 162
+State 161
 
 	Pattern5 -> '(' Pattern ')' .                       (rule 79)
 
@@ -2685,7 +2677,7 @@ State 162
 	L_BoolLiteral  reduce using rule 79
 
 
-State 163
+State 162
 
 	Literal -> '[' ListLiteral ']' .                    (rule 93)
 
@@ -2700,7 +2692,7 @@ State 163
 	L_BoolLiteral  reduce using rule 93
 
 
-State 164
+State 163
 
 	ListLiteral -> Literal ',' . ListLiteral            (rule 96)
 
@@ -2712,16 +2704,16 @@ State 164
 	Integer        goto state 132
 	BoolLiteral    goto state 133
 	Literal        goto state 147
-	ListLiteral    goto state 165
+	ListLiteral    goto state 164
 
-State 165
+State 164
 
 	ListLiteral -> Literal ',' ListLiteral .            (rule 96)
 
 	']'            reduce using rule 96
 
 
-State 166
+State 165
 
 	PatternBranch -> '(' Pattern ')' '>>>' Expr2 .      (rule 57)
 
@@ -2737,4 +2729,4 @@ Grammar Totals
 Number of rules: 110
 Number of terminals: 44
 Number of non-terminals: 56
-Number of states: 167
+Number of states: 166

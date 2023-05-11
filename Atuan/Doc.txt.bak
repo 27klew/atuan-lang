@@ -76,7 +76,7 @@ All other symbols are terminals.
   | //[OTIdent]// | -> | **eps**
   |  |  **|**  | //OTIdent// //[OTIdent]//
   | //Block// | -> | ``{`` //Expr// ``}``
-  | //Lambda// | -> | ``(lambda`` //[OTIdent]// //OptTypeAnnot// ``=>`` //Expr// ``)``
+  | //Lambda// | -> | ``(lambda`` //Ident// //[OTIdent]// //OptTypeAnnot// ``=>`` //Expr// ``)``
   | //Expr8// | -> | //Ident//
   |  |  **|**  | //Integer//
   |  |  **|**  | //BoolLiteral//
