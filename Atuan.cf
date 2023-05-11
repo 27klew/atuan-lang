@@ -45,7 +45,7 @@ terminator nonempty Top ";" ;
 
 separator  nonempty Ident "" ;
 
-separator OTIdent "" ;
+separator OTIdent " " ;
 
 
 -- expressions ---------------------------------------------
@@ -54,7 +54,7 @@ separator OTIdent "" ;
 CurlyBlock. Block ::= "{" Expr "}" ;
 
 
-AnonymousFunction. Lambda ::= "(lambda" Ident [OTIdent] OptTypeAnnot "=>" Expr ")" ;
+AnonymousFunction. Lambda ::= "(lambda" [OTIdent] OptTypeAnnot "=>" Expr ")" ;
 
 
 EVar.      Expr8 ::= Ident ;
