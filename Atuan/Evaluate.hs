@@ -1,7 +1,7 @@
 module Atuan.Evaluate where
 
 
-import Atuan.AlgorithmW (Exp(..), Lit (..))
+import Atuan.AlgorithmW (Exp(..), Lit (..), OpBin (..), MulOp (..), AddOp (..), RelOp (..), OpUn (..))
 
 import Data.Map(Map(..), member, lookup, union, fromList, insert, empty)
 import Control.Monad.Reader (ReaderT (runReaderT), MonadReader (ask, local), runReader)
@@ -111,11 +111,10 @@ eval exp = case exp of
 
 
   EApp exp' exp2 -> do
-    f <- eval exp'
+    f <- evalNorm exp'
     x <- eval exp2
-    f' <- normal f
 
-    case f' of
+    case f of
       VFun s map exp3 -> do
           l <- newlock
           (mem, n) <- get
@@ -161,11 +160,91 @@ eval exp = case exp of
       _ -> throwError "Incorrect type of value. this should not happen."
 
 
-  EBinOp exp' ob exp2 -> throwError "Not yet implemented"
+  EBinOp exp' ob exp2 -> do 
+    case ob of
+      OpMul mo -> (do
+        v1 <- evalNorm exp'
+        v2 <- evalNorm exp2
+        
+        let VInt v1' = v1
+        let VInt v2' = v2
+        
+        (case mo of
+            Times -> return (VInt $ v1' * v2') 
+            Div -> if v2' == 0 then throwError "Error: Division by zero."
+                    else return (VInt $ v1' `div` v2') 
+            Mod -> if v2' == 0 then throwError "Error: Modulo by zero."
+                    else return (VInt $ v1' `mod` v2') 
+            ))
+      OpAdd ao -> (do
+        v1 <- evalNorm exp'
+        v2 <- evalNorm exp2
+        
+        let VInt v1' = v1
+        let VInt v2' = v2
 
-  EUnOp ou exp' -> throwError "Not yet implemented"
+        case ao of
+          Plus -> return (VInt $ v1' + v2')
+          Minus -> return (VInt $ v1' - v2')
+        )
+      OpRel ro -> ( do
+        v1 <- evalNorm exp'
+        v2 <- evalNorm exp2
+        
+        let VInt v1' = v1
+        let VInt v2' = v2         
+
+        return $ VBool (case ro of
+          LTH ->  v1 < v2
+          LE -> v1 <= v2
+          GTH -> v1 > v2
+          GE -> v1 >= v2
+          EQU -> v1 == v2
+          NE -> v1 /= v2)
+
+        )
+      OpAnd -> ( do
+        v1 <- evalNorm exp'
+        -- v2 <- evalNorm exp2
+        
+        let VBool v1' = v1
+        -- let VInt v2' = v2 
+
+        if v1' then
+            evalNorm exp2
+        else
+            return $ VBool False
+        )
+
+      OpOr -> ( do
+        v1 <- evalNorm exp'
+        -- v2 <- evalNorm exp2
+        
+        let VBool v1' = v1
+        -- let VInt v2' = v2 
+
+        if v1' then
+            return $ VBool True            
+        else
+            evalNorm exp2
+        )
+    
+
+  EUnOp ou exp' -> case ou of
+    OpNeg -> ( do
+            v <- evalNorm exp'
+            let VInt v' = v
+            return $ VInt (-v')
+        )       
+    OpNot -> ( do
+            v <- evalNorm exp'
+            let VBool v' = v
+            return $ VBool (not v')
+        ) 
+
 
   EMatch s pbs -> throwError "Not yet implemented"
+
 
 
 
