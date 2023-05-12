@@ -4,13 +4,14 @@
 
 module Atuan.Translate where
 
-import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize)
+import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..))
 
-import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..))
-import Atuan.Abs (BoolLiteral, MulOp, Constr'(..))
+import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
+import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..))
 
 import Atuan.CollectTypes (ADTs(..))
 import qualified Data.Map (toList, empty, fromList)
+import Data.Char (isLower)
 
 class Translatable a where
     translate :: a -> Exp
@@ -112,13 +113,48 @@ instance Translatable (A.Expr' a) where
     let (exp', name) = translateDef def in
         ELet name exp' (translate exp)
 
-  translate A.EMatch {} = error "Not implemented translation for match"
+  translate (A.EMatch a (A.Ident i) pbs) = EMatch i (map translateBranch pbs)
   translate (A.ConsLit a x xs) =
      translate (A.EApp a (A.EVar a (A.Ident "cons")) [x, xs])
 
     -- TODO add match
     -- EMatch a Ident [PatternBranch' a]
 
+translateBranch :: A.PatternBranch' a -> PatternBranch 
+translateBranch br = case br of 
+  BranchPattern a pat ex -> 
+     let pat' = translatePattern pat in
+     let ex' = translate ex in
+      PatternBranch pat' ex' 
+
+
+translatePatternField :: A.Field' a -> Pattern
+translatePatternField field = case field of
+  ConstrField a pat -> translatePattern pat
+  ConstrFieldIdent a (A.Ident i) -> PatternIdent i
+
+
+isStringLower :: String -> Bool 
+isStringLower s = 
+  let c = head s in
+    isLower c
+
+
+translatePattern  :: A.Pattern' a -> Pattern
+translatePattern pat = case pat of 
+  A.PatternLiteral a lit -> error "Literal Patterns are not supported yet."
+  A.PatternConstr a (A.Ident i) fis -> case (isStringLower i) of
+    False -> PatternConstr i  (map translatePatternField fis)
+    True -> if null fis then PatternIdent i else error "lowercase name should be an ident, not constr"
+    
+
+
+
+    -- 
+  A.PatternList a lp -> 
+      case lp of 
+        A.PatternEmptyList a -> PatternEmptyList
+        A.PatternConsList a p1 p2 -> PatternConsList (translatePattern p1) (translatePattern p2) 
 
 
 

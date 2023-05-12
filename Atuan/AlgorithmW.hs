@@ -30,13 +30,26 @@ data Exp     =  EVar String
              |  EIf  Exp Exp Exp
              |  EBinOp Exp OpBin Exp
              |  EUnOp  OpUn Exp
+             |  EMatch String [PatternBranch]
 
              deriving (Eq, Ord)
 
 
             --  TODO
             --  ELitList a [Val' a] 
-            --  EMatch a Ident [PatternBranch' a]
+
+
+data PatternBranch = PatternBranch Pattern Exp deriving (Eq, Ord)
+
+data Pattern = 
+    PatternEmptyList 
+    | PatternConsList Pattern Pattern
+    -- | PatternLiteral Exp
+    |  PatternConstr String [Pattern]
+    |  PatternIdent String
+    deriving (Eq, Ord)
+    
+
 
 data OpUn = OpNeg | OpNot deriving (Eq, Ord)
 data OpBin = OpMul MulOp | OpAdd AddOp | OpRel RelOp | OpAnd | OpOr deriving (Eq, Ord)
@@ -347,8 +360,95 @@ ti env (EUnOp op e) = do
     return (s2 `composeSubst` s1, apply s2 tres)
 
 
+-- tiBranch :: TypeEnv -> PatternBranch -> Type -> TI (Subst, Type)
+
+ti env (EMatch i brs) = do
+    (s, t) <- ti env (EVar i)
+
+    rs <- mapM (tiBranch env t) brs 
+
+    tv <- newTyVar "a"
+    rs' <- foldM unifTypes (nullSubst, tv) rs
+
+    return rs'
+
+    -- throwError $ "Not yet implemented type inference for match: " ++ show rs
+
+nullTypeEnv = TypeEnv Data.Map.empty
+-- TODO - this should return a modified environment?
 
 
+unifTypes :: (Subst, Type) -> (Subst, Type) -> TI (Subst, Type)
+unifTypes (s1, t1) (s2, t2) = do 
+    let s3 = s1 `composeSubst` s2
+    s3' <- mgu (apply s3 t1) (apply s3 t2)
+
+    return (s3', apply s3' t1)
+
+
+fromEnv :: TypeEnv -> Data.Map.Map  String Scheme
+fromEnv (TypeEnv map) = map
+
+
+
+tiPattern :: TypeEnv -> Pattern ->  TI (Subst, Type, TypeEnv)
+tiPattern env pat = case pat of
+  PatternEmptyList -> do
+        tv <- newTyVar "a"
+        return (nullSubst, (ADT "List" [tv]), nullTypeEnv)
+
+  PatternConsList pat' pat2 ->  do
+    tv <- newTyVar "a"
+    let tv' = ADT "List" [tv]
+
+
+    (s1, t1, tenv1) <- tiPattern env pat'
+    (s2, t2, tenv2) <- tiPattern (apply s1 env) pat2
+
+    s3 <- mgu (apply s2 (ADT "List" [t1])) (apply s2 tv')
+
+    unless (null $ Data.Map.intersection (fromEnv tenv1) (fromEnv tenv2))
+        (throwError $ "Multiple declarations of " )
+
+    -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
+    
+    return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (tv'), unionEnv tenv1 tenv2)
+
+    -- s3 <- mgu (apply s2 (ADT "List" [t2])) (apply s2 t1)
+
+    -- return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (ADT "List" [t2]))
+
+  PatternConstr s pats -> do
+    (s, t) <- ti env (EVar s)
+    
+
+    throwError "TODO fold over the recursive subpatterns"
+
+  PatternIdent s -> do
+    tv <- newTyVar "a"
+    let env = TypeEnv $ Data.Map.fromList [(s, generalize emptyTypeEnv tv)]
+
+    return (nullSubst, tv, env)
+
+
+emptyTypeEnv = TypeEnv Data.Map.empty
+
+tiBranch :: TypeEnv ->  Type -> PatternBranch -> TI (Subst, Type)
+tiBranch env tvar (PatternBranch pat exp)  = do
+    (s, t, tenv) <- tiPattern env pat
+
+
+    s' <- mgu t (apply s tvar)
+
+    let tenv' = apply s' tenv
+
+    let env' = unionEnv tenv' env
+
+    throwError $ "Branch exp tenv' "++ show tenv' ++ ", tvar was: " ++ show tvar ++ ", t is: " ++ show t
+
+
+    (s1, t1) <- ti (apply s' env') exp
+    return (s1 `composeSubst` s' `composeSubst` s, t1)
 
 
 
@@ -595,9 +695,23 @@ prExp (EBinOp e1 op e2) =  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")"
 
 prExp (EUnOp op e) = prOpUn op  PP.<+>  PP.text"(" PP.<+> prExp e PP.<+>  PP.text")"
 
+prExp (EMatch i pbs) = PP.text ("Match " ++ i ++ " with ") PP.<+> PP.vcat (map prBranch pbs) 
 
 prOpUn OpNeg = PP.text "-"
 prOpUn OpNot = PP.text "~"
+
+
+prPat :: Pattern -> PP.Doc
+prPat pat = case pat of
+  PatternEmptyList -> PP.text "[]"
+  PatternConsList pat' pat2 -> prPat pat' PP.<+> PP.text ":" PP.<+> prPat pat2
+  PatternConstr s pats -> PP.text ("(" ++ s)  PP.<+> PP.hcat (map ((PP.<+> PP.text " ") . prPat) pats) PP.<+> PP.text ")" 
+  PatternIdent s -> PP.text s
+
+
+prBranch :: PatternBranch -> PP.Doc
+prBranch branch = case branch of 
+    PatternBranch pat exp -> prPat pat PP.<+> PP.text "->" PP.<+> prExp exp
 
 
 prOpBin (OpAdd _)= PP.text "+"
