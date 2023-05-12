@@ -405,14 +405,19 @@ tiPattern env pat = case pat of
     (s1, t1, tenv1) <- tiPattern env pat'
     (s2, t2, tenv2) <- tiPattern (apply s1 env) pat2
 
-    s3 <- mgu (apply s2 (ADT "List" [t1])) (apply s2 tv')
+    s2' <- mgu (apply s2 (ADT "List" [t1])) (apply s2 t2)
+
+    s3 <- mgu (apply s2' (ADT "List" [t1])) (apply s2' tv')
+    s3' <- mgu (apply s3 t2) (apply s3 tv')
 
     unless (null $ Data.Map.intersection (fromEnv tenv1) (fromEnv tenv2))
         (throwError $ "Multiple declarations of " )
 
     -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
     
-    return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (tv'), unionEnv tenv1 tenv2)
+    let s = s3' `composeSubst` s3 `composeSubst` s2' `composeSubst` s2 `composeSubst` s1
+
+    return (s, apply s tv', unionEnv (apply s tenv1) (apply s tenv2))
 
     -- s3 <- mgu (apply s2 (ADT "List" [t2])) (apply s2 t1)
 
@@ -426,7 +431,7 @@ tiPattern env pat = case pat of
 
   PatternIdent s -> do
     tv <- newTyVar "a"
-    let env = TypeEnv $ Data.Map.fromList [(s, generalize emptyTypeEnv tv)]
+    let env = TypeEnv $ Data.Map.fromList [(s, Scheme [] tv)]
 
     return (nullSubst, tv, env)
 
@@ -438,13 +443,16 @@ tiBranch env tvar (PatternBranch pat exp)  = do
     (s, t, tenv) <- tiPattern env pat
 
 
-    s' <- mgu t (apply s tvar)
+    s' <- mgu (apply s t) (apply s tvar)
 
     let tenv' = apply s' tenv
 
     let env' = unionEnv tenv' env
 
-    throwError $ "Branch exp tenv' "++ show tenv' ++ ", tvar was: " ++ show tvar ++ ", t is: " ++ show t
+    -- throwError $ 
+    --     "Branch exp \ntenv' "++ show tenv' ++ "\ntvar was: " ++ show tvar ++ "\nt is: " ++ show t
+    --      ++ "\nsubst: " ++ show s
+    --      ++ "\n tenv: " ++ show tenv 
 
 
     (s1, t1) <- ti (apply s' env') exp
