@@ -107,14 +107,15 @@ eval exp = case exp of
   ELit lit -> case lit of
     LInt n -> return $ VInt n
     LBool b -> return $ VBool b
-    LList exps -> throwError "TODO. Should it exis? Maybe translate it to ADT."
+    LList exps -> throwError "TODO. Should it exist? Maybe translate it to ADT."
 
 
   EApp exp' exp2 -> do
     f <- eval exp'
     x <- eval exp2
+    f' <- normal f
 
-    case f of
+    case f' of
       VFun s map exp3 -> do
           l <- newlock
           (mem, n) <- get
@@ -124,9 +125,22 @@ eval exp = case exp of
       _ -> throwError "Runtime Error: EApp on non-function argument. This should not happen TODO"
 
 
-  EAbs s exp' -> throwError "Not yet implemented"
+  EAbs s exp' -> do
+    env <- ask
+    return $ VFun s env exp'
 
-  ELet s exp' exp2 -> throwError "Not yet implemented"
+
+  ELet s exp' exp2 -> do
+    v <- eval exp'
+    l <- newlock
+    (mem, n) <- get
+    put (insert l v mem, n)
+
+
+    local (union (fromList [(s, l)])) (eval exp2)
+
+    -- throwError "Not yet implemented"
+
 
   ELetRec s exp' exp2 -> do
     l <- newlock
@@ -139,7 +153,13 @@ eval exp = case exp of
     local (union (fromList [(s, l)])) (eval exp2)
 
 
-  EIf exp' exp2 exp3 -> throwError "Not yet implemented"
+  EIf exp' exp2 exp3 -> do 
+    cond <- evalNorm exp'
+    
+    case cond of
+      VBool b -> evalNorm (if b then exp2 else exp3)
+      _ -> throwError "Incorrect type of value. this should not happen."
+
 
   EBinOp exp' ob exp2 -> throwError "Not yet implemented"
 
@@ -148,4 +168,9 @@ eval exp = case exp of
   EMatch s pbs -> throwError "Not yet implemented"
 
 
+
+evalNorm :: Exp -> EM Val
+evalNorm exp = do
+    val <- eval exp
+    normal val
 
