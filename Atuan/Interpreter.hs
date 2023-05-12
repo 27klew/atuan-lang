@@ -36,6 +36,8 @@ import Data.Map (elems, toList, keys, Map, lookup, filter)
 
 import Atuan.Translate (Translatable (translate), translateConstrs)
 import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv)
+import qualified Atuan.Evaluate as Eval (eval, Val(..), testEval)
+
 
 type Err        = Either String
 type ParseFun a = [Token] -> Err a
@@ -152,6 +154,13 @@ run v p s =
 
 
           W.testEnv types treeExp
+
+          let val = Eval.testEval treeExp
+
+
+          case val of
+            Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
+            Right val' -> putStrLn $ "value: " ++ show val'
 
       -- let typed = ti  treeExp
 
