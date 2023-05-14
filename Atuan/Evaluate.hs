@@ -324,6 +324,9 @@ matchPattern v p = case p of
 
   PatternConstr s pats -> do
     let (VADT name vs) = v
+    unless (s == name)
+      (throwError $ "Constructors don't match " ++ name ++ " vs." ++ s)
+    
     vs' <- mapM normal vs
 
     envs <- zipWithM matchPattern vs' pats
