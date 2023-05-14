@@ -21,10 +21,6 @@ import qualified Text.PrettyPrint as PP
 import qualified Data.Map
 
 
-data Def = Definition String String Exp
-
-newtype Program = Program [Def]
-
 data Exp     =  EVar String
              |  ELit Lit
              |  EApp Exp Exp
@@ -256,25 +252,6 @@ tiLit env (LList (x:xs)) = do
     s3 <- mgu tl (ADT "List" [apply sl t])
 
     return (s3 `composeSubst` sl `composeSubst` s, apply s3 tl)
-
-
-
-
-tiProg :: TypeEnv -> Program -> TI Subst
-tiProg env (Program []) =
-    return nullSubst
-
-tiProg env (Program (def:defs)) = do
-    (s, t, e) <- tiDef env def
-    tiProg e (Program defs)
-
-
-tiDef :: TypeEnv -> Def -> TI (Subst, Type, TypeEnv)
-tiDef env (Definition name args e) = do
-    tv <- newTyVar "a"
-
-
-    throwError "Not yet implemented"
 
 
 
