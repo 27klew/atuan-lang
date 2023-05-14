@@ -23,7 +23,7 @@ import Data.Maybe (isNothing)
 -- type TypeEnv a = Map Ident ([TVar' a], [Constr' a])
 
 
-data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving Show 
+data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving Show
 
 
 data ADTs a = ADTs {from_name :: Map Ident (ADT a) , from_constr :: Map Ident (Constr' a)}
@@ -82,20 +82,22 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
     let types = filter isType tops
     let names = map topName types
     let names' = sort names
-   
+
 
     let x = findDuplicate names'
     unless (isNothing x)
       (throwError $ "Duplicate typename " ++ show x) -- TODO locations
-  
+
 
     let y = filter (not . isUpperIdent) names'
     unless (null x)
       (throwError $ "Typename should start with capital letters:" ++ show x)
 
-    
+
 
     mapM_ collectType types
+    collectType (builtInList ann)
+
     types' <- get
 
     -- TODO
@@ -106,7 +108,18 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
 
     return ()
 
+builtInList dummy =
+  TopType dummy (Atuan.Abs.TypeDefinition dummy (Ident "List") vars constr)
+  where vars = [TypeVariable dummy (Ident "ltype")]
+        constr = [
+          DataConstructor dummy (Ident "Empty")  (TypeAnnotation dummy (TypeApp dummy (Ident "List") [TypeVar dummy (Ident "any")])),
+          DataConstructor dummy (Ident "Cons")  (TypeAnnotation dummy
+            (TypeFunc dummy (TypeVar dummy (Ident "any")) (TypeFunc dummy (TypeVar dummy (Ident "any")) (TypeApp dummy (Ident "List") [TypeVar dummy (Ident "any")])) )
+            )
 
+          -- DataConstructor dummy (Ident "cons") (TypeAnnot' a),
+          -- DataConstructor a Ident (TypeAnnot' a)
+          ]
 
 collectType :: Show a => Atuan.Abs.Top' a -> SE () a
 collectType (TopDef _ _ ) = return ()
@@ -117,7 +130,7 @@ collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
     constr' <-  mapM identToVarConstr constr
 
     m <- get
-    
+
     --  TODO checkIdentUnique ident m
 
     addType ident vars constr'
@@ -135,7 +148,7 @@ addConstr :: Constr' a -> SE () a
 addConstr constr = do
   (ADTs types con) <- get
   let name = identConstr constr
-  let con' = insert name constr con 
+  let con' = insert name constr con
   put (ADTs types con')
 
 
@@ -143,9 +156,9 @@ addType :: Ident -> [TVar' a] -> [Constr' a]  -> SE () a
 addType  name vars constr = do
   (ADTs types con) <- get
 
-  let conide = map identConstr constr 
+  let conide = map identConstr constr
 
-  let adt = ADT name vars conide  
+  let adt = ADT name vars conide
 
   let types' = insert name adt types
 

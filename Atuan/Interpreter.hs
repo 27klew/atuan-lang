@@ -127,9 +127,9 @@ run v p s =
 
       case  types of
         Left str -> putStrLn $ "error: " ++ str
-        Right map -> do
-          putStrLn $ ndash "types"  ++ showTypes map
-          let types = translateConstrs map
+        Right adts -> do
+          putStrLn $ ndash "types"  ++ showTypes adts
+          let types = translateConstrs adts
           putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes ++ "types again" ++ ndashes
           print types
 
@@ -155,7 +155,7 @@ run v p s =
 
           W.testEnv types treeExp
 
-          let val = Eval.testEval treeExp
+          let val = Eval.testEval adts treeExp 
 
 
           case val of

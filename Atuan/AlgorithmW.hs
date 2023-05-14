@@ -625,7 +625,7 @@ defaultEnv :: TypeEnv
 defaultEnv = TypeEnv $ Data.Map.fromList 
         [
             (
-            "cons", 
+            "Cons", 
             Scheme ["__l"] (TFun (TVar "__l") (TFun (ADT "List" [TVar "__l"]) (ADT "List" [TVar "__l"])) )
             )
         ]

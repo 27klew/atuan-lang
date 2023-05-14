@@ -115,7 +115,7 @@ instance Translatable (A.Expr' a) where
 
   translate (A.EMatch a (A.Ident i) pbs) = EMatch i (map translateBranch pbs)
   translate (A.ConsLit a x xs) =
-     translate (A.EApp a (A.EVar a (A.Ident "cons")) [x, xs])
+     translate (A.EApp a (A.EVar a (A.Ident "Cons")) [x, xs])
 
     -- TODO add match
     -- EMatch a Ident [PatternBranch' a]
@@ -146,7 +146,7 @@ translatePattern pat = case pat of
   A.PatternConstr a (A.Ident i) fis -> case (isStringLower i) of
     False -> PatternConstr i  (map translatePatternField fis)
     True -> if null fis then PatternIdent i else error "lowercase name should be an ident, not constr"
-    
+
 
 
 
