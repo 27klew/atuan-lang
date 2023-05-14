@@ -3,7 +3,7 @@ module Atuan.Evaluate where
 
 import Atuan.AlgorithmW (Exp(..), Lit (..), OpBin (..), MulOp (..), AddOp (..), RelOp (..), OpUn (..), PatternBranch (..), Pattern (..))
 
-import Data.Map(Map(..), member, lookup, union, fromList, insert, empty, toList)
+import Data.Map(Map(..), member, lookup, union, fromList, insert, empty, toList, unions)
 import Control.Monad.Reader (ReaderT (runReaderT), MonadReader (ask, local), runReader)
 import Control.Monad.State (StateT (runStateT), MonadState (..), evalStateT)
 import Control.Monad.Identity (Identity (runIdentity))
@@ -13,6 +13,7 @@ import qualified Atuan.Abs
 import Atuan.Abs (Constr' (..))
 import Atuan.Translate (iname, itname)
 import Debug.Trace
+import Control.Monad (zipWithM)
 
 
 type Env =  Data.Map.Map String Loc
@@ -321,7 +322,17 @@ matchPattern v p = case p of
         return $ Data.Map.union env1 env2
         )
 
-  PatternConstr s pats -> throwError "Match Pattern not yet implemented"
+  PatternConstr s pats -> do
+    let (VADT name vs) = v
+    vs' <- mapM normal vs
+
+    envs <- zipWithM matchPattern vs' pats
+
+    let env' = unions envs 
+
+    return env'
+
+    -- throwError "Match Pattern not yet implemented"
 
   PatternIdent s -> (do
           l <- newlock

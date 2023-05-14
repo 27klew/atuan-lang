@@ -479,8 +479,9 @@ tiPattern env pat = case pat of
 
 unionEnvDisjoint :: TypeEnv -> TypeEnv -> TI TypeEnv
 unionEnvDisjoint env1 env2 = do
-    unless (isNullEnv $ intersectEnv env1 env2)
-        (throwError "Duplicated declarations")
+    let inter = intersectEnv env1 env2
+    unless (isNullEnv $ inter)
+        (throwError $ "Duplicated declarations" ++ show inter)
     return $ unionEnv env1 env2
 
 
