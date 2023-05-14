@@ -1,3 +1,7 @@
+-- Based on: https://github.com/mgrabmueller/TransformersStepByStep
+
+
+
 module Atuan.AlgorithmW where
 
 
@@ -35,20 +39,17 @@ data Exp     =  EVar String
              deriving (Eq, Ord)
 
 
-            --  TODO
-            --  ELitList a [Val' a] 
-
 
 data PatternBranch = PatternBranch Pattern Exp deriving (Eq, Ord)
 
-data Pattern = 
-    PatternEmptyList 
+data Pattern =
+    PatternEmptyList
     | PatternConsList Pattern Pattern
     -- | PatternLiteral Exp
     |  PatternConstr String [Pattern]
     |  PatternIdent String
     deriving (Eq, Ord)
-    
+
 
 
 data OpUn = OpNeg | OpNot deriving (Eq, Ord)
@@ -58,7 +59,7 @@ data MulOp = Times | Div | Mod deriving (Eq, Ord)
 
 data AddOp = Plus  | Minus deriving (Eq, Ord)
 
-data RelOp = LTH  | LE  | GTH  | GE  | EQU | NE deriving (Eq, Ord) 
+data RelOp = LTH  | LE  | GTH  | GE  | EQU | NE deriving (Eq, Ord)
 
 
 opBinRes :: OpBin -> Type
@@ -202,23 +203,24 @@ instantiate (Scheme vars t) = do  nvars <- mapM (\ _ -> newTyVar "a") vars
 
 mguList :: [Type] -> [Type] -> TI Subst
 mguList [] [] = return nullSubst
-mguList (t1:ts1) (t2:ts2) = do 
+mguList (t1:ts1) (t2:ts2) = do
     s <- mgu t1 t2
-    sl <- mguList (map (apply s) ts1) (map (apply s) ts2) 
-    
+    sl <- mguList (map (apply s) ts1) (map (apply s) ts2)
+
     return $ sl `composeSubst` s
 
 mguList _ _ = throwError "Different number of type arguments."
 
 
 mgu :: Type -> Type -> TI Subst
-mgu (TFun l r) (TFun l' r')  =  do  s1 <- mgu l l'
-                                    s2 <- mgu (apply s1 r) (apply s1 r')
-                                    return (s1 `composeSubst` s2)
-mgu (TVar u) t               =  varBind u t
-mgu t (TVar u)               =  varBind u t
-mgu TInt TInt                =  return nullSubst
-mgu TBool TBool              =  return nullSubst
+mgu (TFun l r) (TFun l' r')  =  do  
+    s1 <- mgu l l'
+    s2 <- mgu (apply s1 r) (apply s1 r')
+    return (s1 `composeSubst` s2)
+mgu (TVar u) t =  varBind u t
+mgu t (TVar u) =  varBind u t
+mgu TInt TInt  =  return nullSubst
+mgu TBool TBool =  return nullSubst
 mgu (ADT name1 ts1) (ADT name2 ts2) = do
         unless (name1 == name2)
             (throwError $ "Types " ++ name1 ++ " and " ++ name2 ++ "cannot be unified.")
@@ -365,7 +367,7 @@ ti env (EUnOp op e) = do
 ti env (EMatch i brs) = do
     (s, t) <- ti env (EVar i)
 
-    rs <- mapM (tiBranch env t) brs 
+    rs <- mapM (tiBranch env t) brs
 
     tv <- newTyVar "a"
     rs' <- foldM unifTypes (nullSubst, tv) rs
@@ -379,11 +381,32 @@ nullTypeEnv = TypeEnv Data.Map.empty
 
 
 unifTypes :: (Subst, Type) -> (Subst, Type) -> TI (Subst, Type)
-unifTypes (s1, t1) (s2, t2) = do 
+unifTypes (s1, t1) (s2, t2) = do
     let s3 = s1 `composeSubst` s2
     s3' <- mgu (apply s3 t1) (apply s3 t2)
 
     return (s3', apply s3' t1)
+
+
+intersectEnv :: TypeEnv -> TypeEnv -> TypeEnv
+intersectEnv (TypeEnv t1) (TypeEnv t2) = TypeEnv $ Data.Map.intersection t1 t2
+
+
+isNullEnv :: TypeEnv -> Bool
+isNullEnv (TypeEnv e) = null e
+
+
+-- unifTypeEnvs :: (Subst, Type, TypeEnv) -> (Subst, Type, TypeEnv) -> TI (Subst, Type, TypeEnv)
+-- unifTypeEnvs (s1, t1, e1) (s2, t2, e2) = do
+--         (s, t) <- unifTypes (s1, t1) (s2, t2)
+
+--         unless (isNullEnv $ intersectEnv e1 e2)
+--             (throwError $ "Multiple definitions of names: " ++ show (intersectEnv e1 e2))
+
+--         let e = unionEnv (apply s e1) (apply s e2)
+
+--         return (s, t, e)
+
 
 
 fromEnv :: TypeEnv -> Data.Map.Map  String Scheme
@@ -414,7 +437,7 @@ tiPattern env pat = case pat of
         (throwError $ "Multiple declarations of " )
 
     -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
-    
+
     let s = s3' `composeSubst` s3 `composeSubst` s2' `composeSubst` s2 `composeSubst` s1
 
     return (s, apply s tv', unionEnv (apply s tenv1) (apply s tenv2))
@@ -423,17 +446,28 @@ tiPattern env pat = case pat of
 
     -- return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (ADT "List" [t2]))
 
-  PatternConstr s pats -> do
-    (s, t) <- ti env (EVar s)
-    
+  PatternConstr con pats -> do
+    (s, t) <- ti env (EVar con)
 
-    throwError "TODO fold over the recursive subpatterns"
+
+    -- ts <- mapM (tiPattern env) pats
+
+
+    -- s <- foldr composeSubst 
+    
+    -- let a = foldr unifTypeEnvs _ _ _
+
+
+    throwError $ "TODO fold over the recursive subpatterns: s: "++ show s ++ ", t: " ++ show t
 
   PatternIdent s -> do
     tv <- newTyVar "a"
     let env = TypeEnv $ Data.Map.fromList [(s, Scheme [] tv)]
 
     return (nullSubst, tv, env)
+
+
+
 
 
 emptyTypeEnv = TypeEnv Data.Map.empty
@@ -621,11 +655,11 @@ test e =
 
 
 
-defaultEnv :: TypeEnv 
-defaultEnv = TypeEnv $ Data.Map.fromList 
+defaultEnv :: TypeEnv
+defaultEnv = TypeEnv $ Data.Map.fromList
         [
             (
-            "Cons", 
+            "Cons",
             Scheme ["__l"] (TFun (TVar "__l") (TFun (ADT "List" [TVar "__l"]) (ADT "List" [TVar "__l"])) )
             )
         ]
@@ -703,7 +737,7 @@ prExp (EBinOp e1 op e2) =  PP.text"(" PP.<+> prExp e1 PP.<+>  PP.text")"
 
 prExp (EUnOp op e) = prOpUn op  PP.<+>  PP.text"(" PP.<+> prExp e PP.<+>  PP.text")"
 
-prExp (EMatch i pbs) = PP.text ("Match " ++ i ++ " with ") PP.<+> PP.vcat (map prBranch pbs) 
+prExp (EMatch i pbs) = PP.text ("Match " ++ i ++ " with ") PP.<+> PP.vcat (map prBranch pbs)
 
 prOpUn OpNeg = PP.text "-"
 prOpUn OpNot = PP.text "~"
@@ -713,12 +747,12 @@ prPat :: Pattern -> PP.Doc
 prPat pat = case pat of
   PatternEmptyList -> PP.text "[]"
   PatternConsList pat' pat2 -> prPat pat' PP.<+> PP.text ":" PP.<+> prPat pat2
-  PatternConstr s pats -> PP.text ("(" ++ s)  PP.<+> PP.hcat (map ((PP.<+> PP.text " ") . prPat) pats) PP.<+> PP.text ")" 
+  PatternConstr s pats -> PP.text ("(" ++ s)  PP.<+> PP.hcat (map ((PP.<+> PP.text " ") . prPat) pats) PP.<+> PP.text ")"
   PatternIdent s -> PP.text s
 
 
 prBranch :: PatternBranch -> PP.Doc
-prBranch branch = case branch of 
+prBranch branch = case branch of
     PatternBranch pat exp -> prPat pat PP.<+> PP.text "->" PP.<+> prExp exp
 
 
