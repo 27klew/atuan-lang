@@ -1,23 +1,21 @@
 
-Standardowy język funkcyjny, wg tabelki, na 25 pkt (na 30 pkt jeśli starczy czasu).
+Standardowy język funkcyjny, wg tabelki. Docelowo będzie na ok 30 pkt.
 
-Składnia inspirowana składnią Haskella.
+Składnia inspirowana składnią Haskella (chociaż przy pattern matchingu i lambdach są trochę inne konstrukcje).
 
 Typy: Int, Bool, funkcyjne, listy. 
 Tworzenie typów algebraicznych jak w w rozszerzeniu GADTs Haskella (jawne podanie typów konstruktorów - przykład w adt.hs).
+W szczególności są one polimorficzne.
 
-Funkcje anonimowe / domnięcia tworzone przez słowo kluczowe lambda.
+Funkcje anonimowe / domknięcia tworzone przez słowo kluczowe lambda.
 
-Pattern matching: dla list po [] | x:xs, po kontruktorach ADT, po literałach. 
-W pierszej wersji jednopoziomowy, domyślnie będzie wielopoziomowy.
+Pattern matching: dla list po [] | x:xs, po kontruktorach ADT. Dowolne zagłebienie wzorców.
 
 
 Możliwe jest jawne podanie typów (chociaż obecnie są one ignorowane).
 Zaimplementowana jest rekonstrukcja typów, oparta o podany na Moodle (https://github.com/mgrabmueller/TransformersStepByStep).
-(To jest na razie raczej prototyp, przedstawię go na zajęciach).
+(To jest na razie raczej prototyp, przedyskutuję go przy prezentowaniu / na najbliższych zajęciach).
 
-
-ADT są polimorficzne.
 
 
 
@@ -29,12 +27,11 @@ Mogą one deklarować (wzajemnie rekurencyjne) typy algebraiczne, poprzez wypisa
 
 Nazwy globalne to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). Nazwy globalne są zawsze wyliczane  tak jakby były funkcjami, nawet jeśli argumentów jest 0. Sprawia to m.in., że program, który nie używa globalnej wartości, której obliczenie powodowałoby błąd, może wykonać się poprawnie (o ile nie wystąpią inne błędy).
 
-
-Język wspiera pattern-matching (tylko po listach).
-
+Let nie jest rekurencyjny.
 
 
-
+Interpreter kompilulować należy poleceniem `ghc Atuan/Interpreter.hs`
+(Względem outputu bnfc jest konieczna jedna drobna zmiana w pliku Abs.hs)
 
 
 
