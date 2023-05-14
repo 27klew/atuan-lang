@@ -277,9 +277,6 @@ eval exp = case exp of
     evalBranches v pbs
 
 
-    -- throwError "Not yet implemented"
-
-
 
 evalBranches :: Val -> [PatternBranch] -> EM Val b
 evalBranches v [] = throwError $ "Pattern match non-exhaustive on value " ++ show v
@@ -301,12 +298,34 @@ matchPattern v p = case p of
   PatternEmptyList -> (do
         let (VADT name vs) = v 
         unless (name == "Empty")
-          (throwError "Pattern not matched")
+          (throwError $ "EmptyList Pattern not matched "  ++ show v)
         return Data.Map.empty
         )
-  PatternConsList pat pat' -> throwError "Match Pattern not yet implemented"
+  PatternConsList pat1 pat2 -> (do
+        
+        let (VADT name [v1, v2]) = v 
+        unless (name == "Cons")
+          ( 
+            throwError $ "ConsList Pattern not matched " ++ show v
+            )
+        
+        env1 <- matchPattern v1 pat1
+        env2 <- matchPattern v2 pat2
+
+        return $ Data.Map.union env1 env2
+        )
+    
   PatternConstr s pats -> throwError "Match Pattern not yet implemented"
-  PatternIdent s -> throwError "Match Pattern not yet implemented"
+  
+  PatternIdent s -> (do
+          l <- newlock
+          
+          (mem, n, adts) <- get
+
+          put (insert l v mem, n, adts)
+
+          return $ Data.Map.fromList [(s, l)]
+        )
 
 
 
