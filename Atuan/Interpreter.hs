@@ -35,8 +35,14 @@ import Data.List ( (++), map, concat, unlines, intercalate, filter )
 import Data.Map (elems, toList, keys, Map, lookup, filter)
 
 import Atuan.Translate (Translatable (translate), translateConstrs)
-import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv)
+import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv')
 import qualified Atuan.Evaluate as Eval (eval, Val(..), testEval)
+
+
+debug = False
+
+putStrLn' :: String -> IO ()
+putStrLn' x = when debug (putStrLn x)
 
 
 type Err        = Either String
@@ -115,11 +121,11 @@ run v p s =
       putStrLn err
       exitFailure
     Right tree -> do
-      putStrLn "\nParse Successful!"
-      showTree v tree
-      putStrLn "\nSummary!"
+      putStrLn' "\nParse Successful!"
+      when debug (showTree v tree)
+      putStrLn' "\nSummary!"
 
-      let (ProgramText a tops) = tree 
+      let (ProgramText a tops) = tree
 
       let types = collect tree
       let defs = ProgramText a $  Data.List.filter(not . isType) tops
@@ -128,16 +134,16 @@ run v p s =
       case  types of
         Left str -> putStrLn $ "error: " ++ str
         Right adts -> do
-          putStrLn $ ndash "types"  ++ showTypes adts
+          putStrLn' $ ndash "types"  ++ showTypes adts
           let types = translateConstrs adts
-          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes ++ "types again" ++ ndashes
-          print types
+          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes ++ "types again" ++ ndashes
+          when debug (print types)
 
 
       -- let Right types' = types
       -- let typed = typecheck types' tree
 
-          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
+          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
       -- case  typed of
       --   Left str -> putStrLn $ "error: " ++ str
@@ -147,24 +153,30 @@ run v p s =
 
           let treeExp = translate defs
 
-          putStrLn $ show treeExp
+          putStrLn' $ show treeExp
 
-          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
-          putStrLn $ ndashes ++ ndashes ++ ndashes ++ ndashes
-
-
-          W.testEnv types treeExp
-
-          let val = Eval.testEval adts treeExp 
+          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
+          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
 
-          case val of
-            Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
-            Right val' -> putStrLn $ "value: " ++ show val'
+          res <- W.testEnv' types treeExp
+
+          case res of
+            Left err  ->  putStrLn $ show err ++ "\n " ++ err ++ "\n"
+            Right ty   ->  ( do
+              putStrLn $  "\nType of main: " ++ show ty
+              let val = Eval.testEval adts treeExp
+
+              (
+                case val of
+                  Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
+                  Right val' -> putStrLn $ "value: " ++ show val'
+                )
+              )
 
       -- let typed = ti  treeExp
 
-          putStrLn "\n\n\nThat's It!"
+          putStrLn' "\n\n\nThat's It!"
   where
   ts = myLexer s
   showPosToken ((l,c),t) = concat [ show l, ":", show c, "\t", show t ]

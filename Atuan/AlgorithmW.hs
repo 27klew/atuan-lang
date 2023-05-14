@@ -444,7 +444,7 @@ tiPattern env pat = case pat of
     -- let a = foldr unifTypeEnvs _ _ _
 
 
-    throwError $ "TODO Matching over ADT is noy yet implemented. s: "++ show s ++ ", t: " ++ show t
+    throwError $ "TODO Matching over ADT is noy yet implemented s: "++ show s ++ ", t: " ++ show t
 
   PatternIdent s -> do
     tv <- newTyVar "a"
@@ -630,6 +630,11 @@ e19 = ELetRec "iter"
     )
 
 
+test' :: Exp -> IO (Either String Type)
+test' e = do  
+    (res, _) <- runTI (typeInference Map.empty e)
+    return res
+
 
 
 test :: Exp -> IO ()
@@ -662,6 +667,14 @@ testEnv env e =
         case res of
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
+
+testEnv' :: TypeEnv -> Exp -> IO (Either String Type)
+testEnv' env e =
+    let TypeEnv env' = unionEnv defaultEnv env in
+    do  (res, _) <- runTI (typeInference env' e)
+        return res
+
+
 
 testDefault = testEnv defaultEnv
 
