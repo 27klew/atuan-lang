@@ -362,10 +362,8 @@ ti env (EMatch i brs) = do
 
     return rs'
 
-    -- throwError $ "Not yet implemented type inference for match: " ++ show rs
 
 nullTypeEnv = TypeEnv Map.empty
--- TODO - this should return a modified environment?
 
 
 unifTypes :: (Subst, Type) -> (Subst, Type) -> TI (Subst, Type)
@@ -446,7 +444,7 @@ tiPattern env pat = case pat of
     -- let a = foldr unifTypeEnvs _ _ _
 
 
-    throwError $ "TODO fold over the recursive subpatterns: s: "++ show s ++ ", t: " ++ show t
+    throwError $ "TODO Matching over ADT is noy yet implemented. s: "++ show s ++ ", t: " ++ show t
 
   PatternIdent s -> do
     tv <- newTyVar "a"

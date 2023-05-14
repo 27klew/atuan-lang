@@ -30,7 +30,7 @@ Mogą one deklarować (wzajemnie rekurencyjne) typy algebraiczne, poprzez wypisa
 Nazwy globalne to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). Nazwy globalne są zawsze wyliczane  tak jakby były funkcjami, nawet jeśli argumentów jest 0. Sprawia to m.in., że program, który nie używa globalnej wartości, której obliczenie powodowałoby błąd, może wykonać się poprawnie (o ile nie wystąpią inne błędy).
 
 
-Język wspiera pattern-matching (obecnie tylko jednopoziomowy i tylko po listach).
+Język wspiera pattern-matching (tylko po listach).
 
 
 

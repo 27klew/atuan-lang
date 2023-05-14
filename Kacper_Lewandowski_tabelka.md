@@ -37,4 +37,6 @@ Uwagi:
 14. Typy dają się deklarować, ich wartości konstruować, podlegają rekonstrukcji typów, ale pattern matching działa tylko dla list
     (A więc można z wartości skorzystać tylko przypisując ją do wartości specjalnej main, która jest wypisywana dla użytkownika na ekran)
 
-15. Obecnie zagnieżdżony pattern matching nie działa, ale powinien.
+15. Obecnie pattern matching działa zagnieżdzony (ale działa tylko dla list).
+
+
