@@ -18,6 +18,7 @@ import Control.Monad (foldM, unless)
 
 
 import qualified Text.PrettyPrint as PP
+import Debug.Trace
 
 
 data Exp     =  EVar String
@@ -412,7 +413,7 @@ tiPattern env pat = case pat of
 
 
     (s1, t1, tenv1) <- tiPattern env pat'
-    (s2, t2, tenv2) <- tiPattern (apply s1 env) pat2
+    (s2, t2, tenv2) <- tiPattern env pat2
 
     s2' <- mgu (apply s2 (ADT "List" [t1])) (apply s2 t2)
 
@@ -435,16 +436,39 @@ tiPattern env pat = case pat of
   PatternConstr con pats -> do
     (s, t) <- ti env (EVar con)
 
+    ts <- mapM (tiPattern env) pats
 
-    -- ts <- mapM (tiPattern env) pats
+    let (ss, tys, ens) = unzip3 ts
+
+    let ss' = foldr composeSubst nullSubst ss
+
+    let ens'' = apply ss' ens
+
+    ens' <- foldM unionEnvDisjoint emptyTypeEnv ens''
+
+    let tys' = apply ss' tys
+
+    let s' = s `composeSubst` ss'
+
+    let t' = apply s' t
 
 
-    -- s <- foldr composeSubst 
-    
-    -- let a = foldr unifTypeEnvs _ _ _
+    tv <- newTyVar "a"
+
+    let tp = foldr (TFun) tv tys'
 
 
-    throwError $ "TODO Matching over ADT is noy yet implemented s: "++ show s ++ ", t: " ++ show t
+    s2 <- mgu tp t'
+
+
+
+    -- s2 <- mgu restype (apply s' (ADT name tys'))
+
+    return (s2 `composeSubst` s', apply s2 tv , apply s2 ens')  
+
+
+    -- trace ("tp: " ++ show (apply s2 tp) ++ "\t show tys': " ++ show (apply s2 tys') ++ "\t show tys" ++show tys ++ "\n") 
+        -- (throwError $ "TODO Matching over ADT is noy yet implemented s: "++ show s ++ ", t: " ++ show t)
 
   PatternIdent s -> do
     tv <- newTyVar "a"
@@ -453,7 +477,11 @@ tiPattern env pat = case pat of
     return (nullSubst, tv, env)
 
 
-
+unionEnvDisjoint :: TypeEnv -> TypeEnv -> TI TypeEnv
+unionEnvDisjoint env1 env2 = do
+    unless (isNullEnv $ intersectEnv env1 env2)
+        (throwError "Duplicated declarations")
+    return $ unionEnv env1 env2
 
 
 emptyTypeEnv = TypeEnv Map.empty
