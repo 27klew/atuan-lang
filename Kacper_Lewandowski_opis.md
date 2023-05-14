@@ -12,16 +12,29 @@ Pattern matching: dla list po [] | x:xs, po kontruktorach ADT, po literałach.
 W pierszej wersji jednopoziomowy, domyślnie będzie wielopoziomowy.
 
 
-Konieczne jest jawne podawanie typów (w definicjach, przy wprowadzaniu konstruktorów typów, przy tworzeniu lambd).
+Możliwe jest jawne podanie typów (chociaż obecnie są one ignorowane).
+Zaimplementowana jest rekonstrukcja typów, oparta o podany na Moodle (https://github.com/mgrabmueller/TransformersStepByStep).
+(To jest na razie raczej prototyp, przedstawię go na zajęciach).
 
 
-W pierwszej wersji planuję ADT monomorficzne. 
-Jeżeli starczy czasu, to zniosę to ograniczenie.
+ADT są polimorficzne.
+
+
+
+Program w tym języku składa się ciągu definicji typów i nazw globalnych.
+
+Definicje typów mogą występować w dowolnej kolejności.
+Mogą one deklarować (wzajemnie rekurencyjne) typy algebraiczne, poprzez wypisanie ich konstrukotorów, wraz z jawnym podaniem typów.
+(Jest to jedyne miejsce w języku gdzie podanie wszystkiech typów jest konieczne).
+
+Nazwy globalne to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). Nazwy globalne są zawsze wyliczane  tak jakby były funkcjami, nawet jeśli argumentów jest 0. Sprawia to m.in., że program, który nie używa globalnej wartości, której obliczenie powodowałoby błąd, może wykonać się poprawnie (o ile nie wystąpią inne błędy).
+
+
+Język wspiera pattern-matching (obecnie tylko jednopoziomowy i tylko po listach).
 
 
 
 
-Planuję posiadać w języku statyczną kontrolę typów.
 
 
 

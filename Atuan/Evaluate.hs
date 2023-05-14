@@ -12,6 +12,7 @@ import Atuan.CollectTypes (ADTs (..))
 import qualified Atuan.Abs
 import Atuan.Abs (Constr' (..))
 import Atuan.Translate (iname, itname)
+import Debug.Trace
 
 
 type Env =  Data.Map.Map String Loc
@@ -286,40 +287,45 @@ evalBranches v (p:ps) = do
 
 
 evalBranch :: Val -> PatternBranch -> EM Val b
-evalBranch v p = case p of 
+evalBranch v p = case p of
   PatternBranch pat exp -> do
       patenv <- matchPattern v pat
-      local (Data.Map.union patenv) (eval exp) 
-      
+      local (Data.Map.union patenv) (eval exp)
+
 
 
 matchPattern :: Val -> Pattern -> EM Env b
 matchPattern v p = case p of
   PatternEmptyList -> (do
-        let (VADT name vs) = v 
+        let (VADT name _) = v
+
         unless (name == "Empty")
           (throwError $ "EmptyList Pattern not matched "  ++ show v)
         return Data.Map.empty
         )
   PatternConsList pat1 pat2 -> (do
-        
-        let (VADT name [v1, v2]) = v 
+
+        let (VADT name [v1', v2']) =  v
+        v1 <- normal v1'
+        v2 <- normal v2'
+
         unless (name == "Cons")
-          ( 
+          (
             throwError $ "ConsList Pattern not matched " ++ show v
             )
-        
+
         env1 <- matchPattern v1 pat1
         env2 <- matchPattern v2 pat2
 
+
         return $ Data.Map.union env1 env2
         )
-    
+
   PatternConstr s pats -> throwError "Match Pattern not yet implemented"
-  
+
   PatternIdent s -> (do
           l <- newlock
-          
+
           (mem, n, adts) <- get
 
           put (insert l v mem, n, adts)

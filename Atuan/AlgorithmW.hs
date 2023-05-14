@@ -1,4 +1,6 @@
 -- Based on: https://github.com/mgrabmueller/TransformersStepByStep
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 
 
 
@@ -9,16 +11,13 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 
-
-
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-
+import Control.Monad.Except(runExceptT, MonadError(throwError, catchError), ExceptT)
+import Control.Monad.Reader(ReaderT(runReaderT) )
+import Control.Monad.State(MonadState(put, get), StateT(runStateT) )
+import Control.Monad (foldM, unless)
 
 
 import qualified Text.PrettyPrint as PP
-import qualified Data.Map
 
 
 data Exp     =  EVar String
@@ -44,7 +43,7 @@ data Pattern =
     -- | PatternLiteral Exp
     |  PatternConstr String [Pattern]
     |  PatternIdent String
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
 
 
@@ -98,26 +97,38 @@ data Type    =  TVar String
 data Scheme  =  Scheme [String] Type
 
 
-
-
 class Types a where
-    ftv    ::  a -> Set.Set String
+    freeVars    ::  a -> Set.Set String
     apply  ::  Subst -> a -> a
 
 
+-- class Collectible a where
+--     collect :: (a -> Set.Set b) -> a -> Set.Set b 
 
+
+
+-- instance Collectible Type where
+--   collect :: (Type -> Set.Set b) -> Type -> Set.Set b
+--   collect f t = case t of
+--     TVar s -> f (TVar s)
+--     TInt -> f (TInt s)
+--     TBool -> _
+--     TFun ty ty' -> _
+--     ADT s tys -> _
 
 
 instance Types Type where
-    ftv (TVar n)      =  Set.singleton n
-    ftv TInt          =  Set.empty
-    ftv TBool         =  Set.empty
-    ftv (TFun t1 t2)  =  ftv t1 `Set.union` ftv t2
-    ftv (ADT _ ts)    =  foldr (Set.union . ftv) Set.empty ts
+    freeVars (TVar n)      =  Set.singleton n
+    freeVars TInt          =  Set.empty
+    freeVars TBool         =  Set.empty
+    freeVars (TFun t1 t2)  =  freeVars t1 `Set.union` freeVars t2
+    freeVars (ADT _ ts)    =  foldr (Set.union . freeVars) Set.empty ts
+
 
     apply s (TVar n)      =  case Map.lookup n s of
                                Nothing  -> TVar n
                                Just t   -> t
+
     apply s (TFun t1 t2)  = TFun (apply s t1) (apply s t2)
 
     apply s TInt             =  TInt
@@ -126,7 +137,7 @@ instance Types Type where
 
 
 instance Types Scheme where
-    ftv (Scheme vars t)      =  ftv t `Set.difference` Set.fromList vars
+    freeVars (Scheme vars t)      =  freeVars t `Set.difference` Set.fromList vars
 
     apply s (Scheme vars t)  =  Scheme vars (apply (foldr Map.delete s vars) t)
 
@@ -134,7 +145,7 @@ instance Types Scheme where
 
 instance Types a => Types [a] where
     apply s  =  map (apply s)
-    ftv l    =  foldr (Set.union . ftv) Set.empty l
+    freeVars l    =  foldr (Set.union . freeVars) Set.empty l
 
 
 
@@ -158,14 +169,14 @@ remove                    ::  TypeEnv -> String -> TypeEnv
 remove (TypeEnv env) var  =  TypeEnv (Map.delete var env)
 
 instance Types TypeEnv where
-    ftv (TypeEnv env)      =  ftv (Map.elems env)
+    freeVars (TypeEnv env)      =  freeVars (Map.elems env)
     apply s (TypeEnv env)  =  TypeEnv (Map.map (apply s) env)
 
 
 
 generalize        ::  TypeEnv -> Type -> Scheme
 generalize env t  =   Scheme vars t
-  where vars = Set.toList (ftv t `Set.difference` ftv env)
+  where vars = Set.toList (freeVars t `Set.difference` freeVars env)
 
 
 
@@ -231,7 +242,7 @@ mgu t1 t2                    =  throwError $ "types do not unify: " ++ show t1 +
 
 varBind :: String -> Type -> TI Subst
 varBind u t  | t == TVar u           =  return nullSubst
-             | u `Set.member` ftv t  =  throwError $ "occurs check fails: " ++ u ++
+             | u `Set.member` freeVars t  =  throwError $ "occurs check fails: " ++ u ++
                                          " vs. " ++ show t
              | otherwise             =  return (Map.singleton u t)
 
@@ -353,7 +364,7 @@ ti env (EMatch i brs) = do
 
     -- throwError $ "Not yet implemented type inference for match: " ++ show rs
 
-nullTypeEnv = TypeEnv Data.Map.empty
+nullTypeEnv = TypeEnv Map.empty
 -- TODO - this should return a modified environment?
 
 
@@ -366,7 +377,7 @@ unifTypes (s1, t1) (s2, t2) = do
 
 
 intersectEnv :: TypeEnv -> TypeEnv -> TypeEnv
-intersectEnv (TypeEnv t1) (TypeEnv t2) = TypeEnv $ Data.Map.intersection t1 t2
+intersectEnv (TypeEnv t1) (TypeEnv t2) = TypeEnv $ Map.intersection t1 t2
 
 
 isNullEnv :: TypeEnv -> Bool
@@ -386,7 +397,7 @@ isNullEnv (TypeEnv e) = null e
 
 
 
-fromEnv :: TypeEnv -> Data.Map.Map  String Scheme
+fromEnv :: TypeEnv -> Map.Map  String Scheme
 fromEnv (TypeEnv map) = map
 
 
@@ -410,7 +421,7 @@ tiPattern env pat = case pat of
     s3 <- mgu (apply s2' (ADT "List" [t1])) (apply s2' tv')
     s3' <- mgu (apply s3 t2) (apply s3 tv')
 
-    unless (null $ Data.Map.intersection (fromEnv tenv1) (fromEnv tenv2))
+    unless (null $ Map.intersection (fromEnv tenv1) (fromEnv tenv2))
         (throwError $ "Multiple declarations of " )
 
     -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
@@ -439,7 +450,7 @@ tiPattern env pat = case pat of
 
   PatternIdent s -> do
     tv <- newTyVar "a"
-    let env = TypeEnv $ Data.Map.fromList [(s, Scheme [] tv)]
+    let env = TypeEnv $ Map.fromList [(s, Scheme [] tv)]
 
     return (nullSubst, tv, env)
 
@@ -447,7 +458,7 @@ tiPattern env pat = case pat of
 
 
 
-emptyTypeEnv = TypeEnv Data.Map.empty
+emptyTypeEnv = TypeEnv Map.empty
 
 tiBranch :: TypeEnv ->  Type -> PatternBranch -> TI (Subst, Type)
 tiBranch env tvar (PatternBranch pat exp)  = do
@@ -633,7 +644,7 @@ test e =
 
 
 defaultEnv :: TypeEnv
-defaultEnv = TypeEnv $ Data.Map.fromList
+defaultEnv = TypeEnv $ Map.fromList
         [
             (
             "Cons",
@@ -643,7 +654,7 @@ defaultEnv = TypeEnv $ Data.Map.fromList
 
 
 unionEnv :: TypeEnv -> TypeEnv -> TypeEnv
-unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Data.Map.union e1 e2) 
+unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2) 
 
 
 testEnv :: TypeEnv -> Exp -> IO ()
