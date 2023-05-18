@@ -92,6 +92,7 @@ transExpr x = case x of
   Atuan.Abs.EMatch _ ident patternbranchs -> failure x
   Atuan.Abs.EIf _ expr1 expr2 expr3 -> failure x
   Atuan.Abs.ELet _ def expr -> failure x
+  Atuan.Abs.ELetRec _ def expr -> failure x
   Atuan.Abs.ConsLit _ expr1 expr2 -> failure x
 
 transVal :: Show a => Atuan.Abs.Val' a -> Result

@@ -57,13 +57,14 @@ import Atuan.Lex
   'if'          { PT _ (TS _ 32)         }
   'in'          { PT _ (TS _ 33)         }
   'let'         { PT _ (TS _ 34)         }
-  'match'       { PT _ (TS _ 35)         }
-  'then'        { PT _ (TS _ 36)         }
-  'where'       { PT _ (TS _ 37)         }
-  'with'        { PT _ (TS _ 38)         }
-  '{'           { PT _ (TS _ 39)         }
-  '||'          { PT _ (TS _ 40)         }
-  '}'           { PT _ (TS _ 41)         }
+  'letrec'      { PT _ (TS _ 35)         }
+  'match'       { PT _ (TS _ 36)         }
+  'then'        { PT _ (TS _ 37)         }
+  'where'       { PT _ (TS _ 38)         }
+  'with'        { PT _ (TS _ 39)         }
+  '{'           { PT _ (TS _ 40)         }
+  '||'          { PT _ (TS _ 41)         }
+  '}'           { PT _ (TS _ 42)         }
   L_Ident       { PT _ (TV _)            }
   L_integ       { PT _ (TI _)            }
   L_BoolLiteral { PT _ (T_BoolLiteral _) }
@@ -214,6 +215,7 @@ Expr1
   | 'match' Ident 'with' ListPatternBranch { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.EMatch (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
   | 'if' Expr2 'then' Expr2 'else' Expr2 { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.EIf (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4) (snd $6)) }
   | 'let' Def 'in' Expr2 { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.ELet (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  | 'letrec' Def 'in' Expr2 { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.ELetRec (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
   | Expr2 { (fst $1, (snd $1)) }
 
 PatternBranch :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.PatternBranch) }

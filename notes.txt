@@ -1,0 +1,46 @@
+
+
+- algorithm W kod
+
+- czym właściwie są te ogólne polimorficzne typy danych
+
+- czy tak jak ja mam strukturę wyrażeń teraz (let / letrec) i jak się to zachowuje (x = x to pętla) jest ok?
+
+- w szczególności to że cały program to bardzo mocno zagłebiony let
+
+- czy program musi mieć IO, czy można uznać że nic nie czyta?
+- i co wtedy należy wypisywać w programie (obecnie wartość main)?
+
+
+
+- jak bardzo konieczne jest żeby `make` budował interpreter
+- czy trzeba cały czas uruchamiać bnfc, u mnie jest obecnie ręczna nakładka na Abs
+	-  w sumie da się tą nakładkę pewnie zrobić w obrębie bnfc, dodając ukrytą produkcję 
+
+
+
+
+
+
+
+
+
+
+
+
+- trzeba dodać sensowne komunikaty o błedach
+
+- trzeba sprawić by sprawdzanie definicji typów wykrywało wszystkie możliwe bezsensowne deklaracje
+
+
+- trzeba jakoś porządnie przetestować jak działają te typy albebraiczne (zwłaszcza z polimorfizmem)
+
+
+- jakie mogą być przykłady w katalogu bad
+
+
+
+- sprawdzanie kompletności matchy?
+
+
+

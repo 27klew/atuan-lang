@@ -166,7 +166,7 @@ Expr8 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
 Expr8
   : Lambda { (fst $1, Atuan.Abs.ELambda (fst $1) (snd $1)) }
   | Expr9 { (fst $1, (snd $1)) }
-  | '(' Expr9 ':' Expr9 ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.ConsLit (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
+  | Expr9 ':' Expr9 { (fst $1, Atuan.Abs.ConsLit (fst $1) (snd $1) (snd $3)) }
 
 Val :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Val) }
 Val : Expr9 { (fst $1, Atuan.Abs.ValList (fst $1) (snd $1)) }

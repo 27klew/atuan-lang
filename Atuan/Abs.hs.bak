@@ -89,7 +89,7 @@ data Expr' a
     | EMatch a Ident [PatternBranch' a]
     | EIf a (Expr' a) (Expr' a) (Expr' a)
     | ELet a (Def' a) (Expr' a)
-    | ConsLit a (Expr' a) Integer
+    | ConsLit a (Expr' a) (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Val = Val' BNFC'Position
@@ -144,6 +144,7 @@ data Type' a
     | TypeIdent a Ident
     | TypeApp a Ident [Type' a]
     | TypeFunc a (Type' a) (Type' a)
+    | TypeVar a Ident 
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 newtype Ident = Ident String

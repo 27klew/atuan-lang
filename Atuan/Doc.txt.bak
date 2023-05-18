@@ -84,7 +84,7 @@ All other symbols are terminals.
   |  |  **|**  | ``(`` //Expr// ``)``
   | //Expr8// | -> | //Lambda//
   |  |  **|**  | //Expr9//
-  |  |  **|**  | ``(`` //Expr9// ``:`` //Expr9// ``)``
+  |  |  **|**  | //Expr9// ``:`` //Expr9//
   | //Val// | -> | //Expr9//
   | //[Val]// | -> | **eps**
   |  |  **|**  | //Val//

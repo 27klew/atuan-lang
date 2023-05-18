@@ -95,6 +95,9 @@ EIf.       Expr1 ::= "if" Expr2 "then" Expr2 "else" Expr2 ;
 
 ELet.      Expr1 ::= "let" Def "in" Expr2 ; 
 
+ELetRec.      Expr1 ::= "letrec" Def "in" Expr2 ; 
+
+
 
 BranchPattern. PatternBranch ::= "(" Pattern ")" ">>>" Expr2 ;
 

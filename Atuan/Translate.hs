@@ -112,6 +112,9 @@ instance Translatable (A.Expr' a) where
   translate (A.ELet a def exp) =
     let (exp', name) = translateDef def in
         ELet name exp' (translate exp)
+  translate (A.ELetRec a def exp) = 
+      let (exp', name) = translateDef def in
+        ELetRec name exp' (translate exp)
 
   translate (A.EMatch a (A.Ident i) pbs) = EMatch i (map translateBranch pbs)
   translate (A.ConsLit a x xs) =
