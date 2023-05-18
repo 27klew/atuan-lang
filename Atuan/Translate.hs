@@ -120,8 +120,6 @@ instance Translatable (A.Expr' a) where
   translate (A.ConsLit a x xs) =
      translate (A.EApp a (A.EVar a (A.Ident "Cons")) [x, xs])
 
-    -- TODO add match
-    -- EMatch a Ident [PatternBranch' a]
 
 translateBranch :: A.PatternBranch' a -> PatternBranch 
 translateBranch br = case br of 
