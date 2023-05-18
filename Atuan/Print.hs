@@ -319,6 +319,7 @@ instance Print (Atuan.Abs.Type' a) where
     Atuan.Abs.TypeList _ type_ -> prPrec i 4 (concatD [doc (showString "["), prt 0 type_, doc (showString "]")])
     Atuan.Abs.TypeIdent _ id_ -> prPrec i 4 (concatD [prt 0 id_])
     Atuan.Abs.TypeApp _ id_ types -> prPrec i 3 (concatD [doc (showString "("), prt 0 id_, prt 4 types, doc (showString ")")])
+    Atuan.Abs.TypeVar _ id_ -> prPrec i 1 (concatD [prt 0 id_])
     Atuan.Abs.TypeFunc _ type_1 type_2 -> prPrec i 1 (concatD [prt 2 type_1, doc (showString "->"), prt 1 type_2])
 
 instance Print [Atuan.Abs.Type' a] where

@@ -234,6 +234,7 @@ instance Print (Atuan.Abs.Expr' a) where
     Atuan.Abs.EMatch _ id_ patternbranchs -> prPrec i 1 (concatD [doc (showString "match"), prt 0 id_, doc (showString "with"), prt 0 patternbranchs])
     Atuan.Abs.EIf _ expr1 expr2 expr3 -> prPrec i 1 (concatD [doc (showString "if"), prt 2 expr1, doc (showString "then"), prt 2 expr2, doc (showString "else"), prt 2 expr3])
     Atuan.Abs.ELet _ def expr -> prPrec i 1 (concatD [doc (showString "let"), prt 0 def, doc (showString "in"), prt 2 expr])
+    Atuan.Abs.ELetRec _ def expr -> prPrec i 1 (concatD [doc (showString "letrec"), prt 0 def, doc (showString "in"), prt 2 expr])
     Atuan.Abs.ConsLit _ expr1 expr2 -> prPrec i 8 (concatD [prt 9 expr1, doc (showString ":"), prt 9 expr2])
 
 instance Print (Atuan.Abs.Val' a) where

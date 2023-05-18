@@ -193,6 +193,8 @@ TypeIdent. Type4 ::= Ident;
 
 TypeApp. Type3 ::= "(" Ident [Type4] ")";
 
+internal TypeVar. Type1 ::= Ident;
+
 
 separator nonempty Type4 " " ;
 

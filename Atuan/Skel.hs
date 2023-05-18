@@ -152,4 +152,5 @@ transType x = case x of
   Atuan.Abs.TypeList _ type_ -> failure x
   Atuan.Abs.TypeIdent _ ident -> failure x
   Atuan.Abs.TypeApp _ ident types -> failure x
+  Atuan.Abs.TypeVar _ ident -> failure x
   Atuan.Abs.TypeFunc _ type_1 type_2 -> failure x

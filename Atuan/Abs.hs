@@ -144,8 +144,8 @@ data Type' a
     | TypeList a (Type' a)
     | TypeIdent a Ident
     | TypeApp a Ident [Type' a]
+    | TypeVar a Ident
     | TypeFunc a (Type' a) (Type' a)
-    | TypeVar a Ident 
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 newtype Ident = Ident String
@@ -298,5 +298,6 @@ instance HasPosition Type where
     TypeList p _ -> p
     TypeIdent p _ -> p
     TypeApp p _ _ -> p
+    TypeVar p _ -> p
     TypeFunc p _ _ -> p
 

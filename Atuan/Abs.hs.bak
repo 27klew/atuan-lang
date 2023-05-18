@@ -89,6 +89,7 @@ data Expr' a
     | EMatch a Ident [PatternBranch' a]
     | EIf a (Expr' a) (Expr' a) (Expr' a)
     | ELet a (Def' a) (Expr' a)
+    | ELetRec a (Def' a) (Expr' a)
     | ConsLit a (Expr' a) (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
@@ -237,6 +238,7 @@ instance HasPosition Expr where
     EMatch p _ _ -> p
     EIf p _ _ _ -> p
     ELet p _ _ -> p
+    ELetRec p _ _ -> p
     ConsLit p _ _ -> p
 
 instance HasPosition Val where
