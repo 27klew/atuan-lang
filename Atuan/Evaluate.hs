@@ -10,8 +10,8 @@ import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Except (ExceptT, throwError, unless, runExceptT, MonadError (catchError))
 import Atuan.CollectTypes (ADTs (..))
 import qualified Atuan.Abs
-import Atuan.Abs (Constr' (..))
-import Atuan.Translate (iname, itname)
+import Atuan.Abs (Constr' (..), HasPosition)
+import Atuan.Translate (iname, itname, Pos)
 import Debug.Trace
 import Control.Monad (zipWithM)
 
@@ -19,18 +19,18 @@ import Control.Monad (zipWithM)
 type Env =  Data.Map.Map String Loc
 
 
-data Val = VInt Integer
+data Val a = VInt Integer
     | VBool Bool
-    | VFun String Env Exp
-    | VADT String [Val]
-    | VExp Exp Env deriving (Eq, Ord, Show)
+    | VFun String Env (Exp a)
+    | VADT String [Val a]
+    | VExp (Exp a) Env deriving (Eq, Ord, Show)
 
 
 type Loc = Int
 
 type State b = (Mem, Loc, ADTs  Atuan.Abs.BNFC'Position)
 
-type Mem = Data.Map.Map Loc Val
+type Mem = Data.Map.Map Loc (Val Pos)
 
 type Expected a = ExceptT String a
 
@@ -53,10 +53,10 @@ f (env, (mem, loc, adts)) name =
     (insert name loc env, (insert loc (VADT name []) mem, loc+1, adts))
 
 
-testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp -> Either String Val
+testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val Pos)
 testEval adts exp =
     let x = do
-        exp' <- eval exp :: EM Val  Atuan.Abs.BNFC'Position
+        exp' <- eval exp :: EM (Val Pos)  Atuan.Abs.BNFC'Position
         normal exp'
     in
     let (env, state) = setupEnv adts in
@@ -99,7 +99,7 @@ newlock = do
 
 
 -- TODO --- this should probably have it's  own value
-normal :: Val -> EM Val b
+normal :: (Val Pos) -> EM (Val Pos) b
 normal v = case v of
   VExp exp env -> do
         v' <- local (const env)(eval exp)
@@ -109,7 +109,7 @@ normal v = case v of
 
 
 
-askVal :: String -> EM  Val b
+askVal :: String -> EM  (Val Pos) b
 askVal s = do
     loc <- getLoc s
     mem <- getMem
@@ -124,21 +124,30 @@ askVal s = do
 --     let x = (from_name adts) 
 --     throwError "aaa"
 
+-- instance HasPosition a => HasPosition (Val a) where
+--   -- hasPosition :: Val a -> Pos
+--   hasPosition v = case v of
+--     VInt n -> _
+--     VBool b -> _
+--     VFun s map exp -> _
+--     VADT s vals -> _
+--     VExp exp map -> _
 
-eval :: Exp -> EM Val b
+
+eval :: Exp Pos -> EM (Val Pos) b
 eval exp = case exp of
-  EVar s -> do
+  EVar pos s -> do
     askVal s
 
-  ELit lit -> case lit of
-    LInt n -> return $ VInt n
-    LBool b -> return $ VBool b
-    LList exps -> do
+  ELit _ lit -> case lit of
+    LInt pos n -> return $ VInt n
+    LBool pos b -> return $ VBool b
+    LList pos exps -> do
         vals <- mapM eval exps
         return (foldr (\x a-> VADT "Cons" [x, a]) (VADT "Empty" [])  vals)
 
 
-  EApp exp' exp2 -> do
+  EApp pos exp' exp2 -> do
     f <- evalNorm exp'
     x <- evalNorm exp2
 
@@ -155,12 +164,12 @@ eval exp = case exp of
       _ -> throwError "Runtime Error: EApp on non-function argument. This should not happen TODO"
 
 
-  EAbs s exp' -> do
+  EAbs pos s exp' -> do
     env <- ask
     return $ VFun s env exp'
 
 
-  ELet s exp' exp2 -> do
+  ELet pos s exp' exp2 -> do
     v <- eval exp'
     l <- newlock
     (mem, n, a) <- get
@@ -172,7 +181,7 @@ eval exp = case exp of
     -- throwError "Not yet implemented"
 
 
-  ELetRec s exp' exp2 -> do
+  ELetRec pos s exp' exp2 -> do
     l <- newlock
     (mem, n, a) <- get
     env <- ask
@@ -183,7 +192,7 @@ eval exp = case exp of
     local (union (fromList [(s, l)])) (eval exp2)
 
 
-  EIf exp' exp2 exp3 -> do
+  EIf pos exp' exp2 exp3 -> do
     cond <- evalNorm exp'
 
     case cond of
@@ -191,7 +200,7 @@ eval exp = case exp of
       _ -> throwError "Incorrect type of value. this should not happen."
 
 
-  EBinOp exp' ob exp2 -> do
+  EBinOp pos exp' ob exp2 -> do
     case ob of
       OpMul mo -> (do
         v1 <- evalNorm exp'
@@ -202,9 +211,9 @@ eval exp = case exp of
 
         (case mo of
             Times -> return (VInt $ v1' * v2')
-            Div -> if v2' == 0 then throwError "Error: Division by zero."
+            Div -> if v2' == 0 then throwError ("Error: Division by zero. at " ++ show pos)
                     else return (VInt $ v1' `div` v2')
-            Mod -> if v2' == 0 then throwError "Error: Modulo by zero."
+            Mod -> if v2' == 0 then throwError ("Error: Modulo by zero  at " ++ show pos)
                     else return (VInt $ v1' `mod` v2')
             ))
       OpAdd ao -> (do
@@ -261,7 +270,7 @@ eval exp = case exp of
         )
 
 
-  EUnOp ou exp' -> case ou of
+  EUnOp pos ou exp' -> case ou of
     OpNeg -> ( do
             v <- evalNorm exp'
             let VInt v' = v
@@ -274,20 +283,22 @@ eval exp = case exp of
         )
 
 
-  EMatch s pbs -> do
-    v <- evalNorm (EVar s)
+  EMatch pos s pbs -> do
+    v <- evalNorm (EVar pos s)
     evalBranches v pbs
+    -- `catchError`
+    -- (++ "aaa")
 
 
 
-evalBranches :: Val -> [PatternBranch] -> EM Val b
+evalBranches :: Val Pos -> [PatternBranch Pos] -> EM (Val Pos)  b
 evalBranches v [] = throwError $ "Pattern match non-exhaustive on value " ++ show v
 evalBranches v (p:ps) = do
       evalBranch v p `catchError` const (evalBranches v ps)
 
 
 
-evalBranch :: Val -> PatternBranch -> EM Val b
+evalBranch :: Val Pos -> PatternBranch Pos -> EM (Val Pos) b
 evalBranch v p = case p of
   PatternBranch pat exp -> do
       patenv <- matchPattern v pat
@@ -295,16 +306,16 @@ evalBranch v p = case p of
 
 
 
-matchPattern :: Val -> Pattern -> EM Env b
+matchPattern :: Val Pos -> Pattern Pos -> EM Env b
 matchPattern v p = case p of
-  PatternEmptyList -> (do
+  PatternEmptyList _-> (do
         let (VADT name _) = v
 
         unless (name == "Empty")
           (throwError $ "EmptyList Pattern not matched "  ++ show v)
         return Data.Map.empty
         )
-  PatternConsList pat1 pat2 -> (do
+  PatternConsList _ pat1 pat2 -> (do
 
         let (VADT name [v1', v2']) =  v
         v1 <- normal v1'
@@ -322,7 +333,7 @@ matchPattern v p = case p of
         return $ Data.Map.union env1 env2
         )
 
-  PatternConstr s pats -> do
+  PatternConstr _ s pats -> do
     let (VADT name vs) = v
     unless (s == name)
       (throwError $ "Constructors don't match " ++ name ++ " vs." ++ s)
@@ -337,7 +348,7 @@ matchPattern v p = case p of
 
     -- throwError "Match Pattern not yet implemented"
 
-  PatternIdent s -> (do
+  PatternIdent _ s -> (do
           l <- newlock
 
           (mem, n, adts) <- get
@@ -350,8 +361,8 @@ matchPattern v p = case p of
 
 
 
-evalNorm :: Exp -> EM Val b
+evalNorm :: Exp Pos -> EM (Val Pos) b
 evalNorm exp = do
-    val <- eval exp
+    val <- eval exp 
     normal val
 

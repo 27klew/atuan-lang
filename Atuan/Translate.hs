@@ -7,52 +7,54 @@ module Atuan.Translate where
 import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..))
 
 import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
-import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..))
+import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position)
 
 import Atuan.CollectTypes (ADTs(..))
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
 
 class Translatable a where
-    translate :: a -> Exp
+    translate :: a -> Exp Pos
 
+
+type Pos = BNFC'Position
 
 iname :: A.OTIdent' a -> String
 iname (A.OptionallyTypedIdentifier a (A.TypedIdentifier a2 (A.Ident n) _)) = n
 iname (A.SkippedTypeIdentifier a (A.Ident n)) = n
 
 
-translateDef :: A.Def' a -> (Exp, String)
+translateDef :: A.Def' Pos -> (Exp Pos, String)
 translateDef (A.DefinitionT a (A.Ident i) ids t exp) =
     let exp' = translate exp in
     let ids' = map iname ids in
     case ids' of
         [] -> (exp', i)
         iss -> (app, i)
-            where app = foldr EAbs exp' iss
+            where app = foldr (EAbs a) exp' iss
 
-instance Translatable (A.Program' a) where
-    translate (A.ProgramText _ []) =
-        EVar "main"
+instance Translatable (A.Program' Pos) where
+    translate (A.ProgramText a []) =
+        EVar a "main"
     translate (A.ProgramText a1 (x:xs)) = case x of
       A.TopDef a def ->
         let (exp', name) = translateDef def in
-        ELetRec  name exp' (translate (A.ProgramText a1 xs))
+        ELetRec  a1 name exp' (translate (A.ProgramText a1 xs))
       A.TopType a td -> error "Type definitions should not be translated."
 
 instance Translatable A.BoolLiteral where
     translate (A.BoolLiteral b) =
-        ELit (LBool b') where
+        ELit Nothing (LBool Nothing b') where
             b' = b == "True"
 
-instance Translatable (A.Lambda' a) where
-  translate :: A.Lambda' a -> Exp
+instance Translatable (A.Lambda' Pos) where
+  translate :: A.Lambda' Pos -> Exp Pos
   translate (A.AnonymousFunction a ids t exp) = do
     let (exp', _) = translateDef (A.DefinitionT a (A.Ident "__anonymous__") ids t exp) in
       exp'
 
-instance Translatable (A.Val' a) where
-  translate :: A.Val' a -> Exp
+instance Translatable (A.Val' Pos) where
+  translate :: A.Val' Pos -> Exp Pos
   translate (A.ValList a expr) = translate expr
 
 
@@ -83,14 +85,14 @@ instance TranslatableOp (A.AddOp' a) where
 
 
 
-instance Translatable (A.Expr' a) where
-  translate :: A.Expr' a -> Exp
-  translate (A.EVar a (A.Ident i)) = EVar i
-  translate (A.ELitInt a n) = ELit (LInt n)
+instance Translatable (A.Expr' Pos) where
+  translate :: A.Expr' Pos -> Exp Pos
+  translate (A.EVar a (A.Ident i)) = EVar a i
+  translate (A.ELitInt a n) = ELit a (LInt a n)
   translate (A.ELitBool a b) = translate b
   translate (A.ELambda a l) = translate l
   translate (A.ELitList a vals) =
-         ELit (LList (map translate vals))
+         ELit a (LList a (map translate vals))
 
   translate (A.EApp a e1 []) = translate e1
 
@@ -98,30 +100,30 @@ instance Translatable (A.Expr' a) where
         let e1' = translate e1
             -- x' = translate x
             xs' = map translate xs in
-        foldl EApp e1' xs'
+        foldl (EApp a) e1' xs'
 
-  translate (A.Neg a exp) = EUnOp OpNeg (translate exp)
-  translate (A.Not a exp) = EUnOp OpNot (translate exp)
-  translate (A.EMul a exp1 op exp2) = EBinOp (translate exp1) (translateOp op) (translate exp2)
-  translate (A.EAdd a exp1 op exp2) = EBinOp (translate exp1) (translateOp op) (translate exp2)
-  translate (A.ERel a exp1 op exp2) = EBinOp (translate exp1) (translateOp op) (translate exp2)
-  translate (A.EAnd a exp1 exp2) = EBinOp (translate exp1) OpAnd (translate exp2)
-  translate (A.EOr a exp1 exp2) = EBinOp (translate exp1) OpOr (translate exp2)
+  translate (A.Neg a exp) = EUnOp a OpNeg (translate exp)
+  translate (A.Not a exp) = EUnOp a OpNot (translate exp)
+  translate (A.EMul a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
+  translate (A.EAdd a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
+  translate (A.ERel a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
+  translate (A.EAnd a exp1 exp2) = EBinOp a (translate exp1) OpAnd (translate exp2)
+  translate (A.EOr a exp1 exp2) = EBinOp a (translate exp1) OpOr (translate exp2)
 
-  translate (A.EIf a exp exp1 exp2) = EIf (translate exp) (translate exp1) (translate exp2)
+  translate (A.EIf a exp exp1 exp2) = EIf a (translate exp) (translate exp1) (translate exp2)
   translate (A.ELet a def exp) =
     let (exp', name) = translateDef def in
-        ELet name exp' (translate exp)
+        ELet a name exp' (translate exp)
   translate (A.ELetRec a def exp) = 
       let (exp', name) = translateDef def in
-        ELetRec name exp' (translate exp)
+        ELetRec a name exp' (translate exp)
 
-  translate (A.EMatch a (A.Ident i) pbs) = EMatch i (map translateBranch pbs)
+  translate (A.EMatch a (A.Ident i) pbs) = EMatch a i (map translateBranch pbs)
   translate (A.ConsLit a x xs) =
      translate (A.EApp a (A.EVar a (A.Ident "Cons")) [x, xs])
 
 
-translateBranch :: A.PatternBranch' a -> PatternBranch 
+translateBranch :: A.PatternBranch' Pos -> PatternBranch Pos
 translateBranch br = case br of 
   BranchPattern a pat ex -> 
      let pat' = translatePattern pat in
@@ -129,10 +131,10 @@ translateBranch br = case br of
       PatternBranch pat' ex' 
 
 
-translatePatternField :: A.Field' a -> Pattern
+translatePatternField :: A.Field' Pos -> Pattern Pos
 translatePatternField field = case field of
   ConstrField a pat -> translatePattern pat
-  ConstrFieldIdent a (A.Ident i) -> PatternIdent i
+  ConstrFieldIdent a (A.Ident i) -> PatternIdent a i
 
 
 isStringLower :: String -> Bool 
@@ -141,12 +143,12 @@ isStringLower s =
     isLower c
 
 
-translatePattern  :: A.Pattern' a -> Pattern
+translatePattern  :: A.Pattern' Pos -> Pattern Pos
 translatePattern pat = case pat of 
   A.PatternLiteral a lit -> error "Literal Patterns are not supported yet."
   A.PatternConstr a (A.Ident i) fis -> case (isStringLower i) of
-    False -> PatternConstr i  (map translatePatternField fis)
-    True -> if null fis then PatternIdent i else error "lowercase name should be an ident, not constr"
+    False -> PatternConstr a i  (map translatePatternField fis)
+    True -> if null fis then PatternIdent a i else error "lowercase name should be an ident, not constr"
 
 
 
@@ -154,8 +156,8 @@ translatePattern pat = case pat of
     -- 
   A.PatternList a lp -> 
       case lp of 
-        A.PatternEmptyList a -> PatternEmptyList
-        A.PatternConsList a p1 p2 -> PatternConsList (translatePattern p1) (translatePattern p2) 
+        A.PatternEmptyList a -> PatternEmptyList a
+        A.PatternConsList a p1 p2 -> PatternConsList a (translatePattern p1) (translatePattern p2) 
 
 
 
