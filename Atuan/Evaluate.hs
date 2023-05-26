@@ -34,7 +34,7 @@ type Mem = Data.Map.Map Loc (Val Pos)
 
 type Expected a = ExceptT String a
 
-type EM a b = ReaderT Env (StateT (State )  (Expected Identity)) a
+type EM a = ReaderT Env (StateT State (Expected Identity)) a
 
 
 -- constrToName :: Constr' a -> String
@@ -56,7 +56,7 @@ f (env, (mem, loc, adts)) name =
 testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val Pos)
 testEval adts exp =
     let x = do
-        exp' <- eval exp :: EM (Val Pos)  Atuan.Abs.BNFC'Position
+        exp' <- eval exp :: EM (Val Pos)
         normal exp'
     in
     let (env, state) = setupEnv adts in
@@ -70,13 +70,13 @@ testEval adts exp =
 
 
 
-getMem :: EM Mem b
+getMem :: EM Mem
 getMem = do
     (mem, _, _) <- get
     return mem
 
 
-getLoc :: String -> EM Loc b
+getLoc :: String -> EM Loc
 getLoc s = do
     env <- ask
     case  Data.Map.lookup s env of
@@ -84,7 +84,7 @@ getLoc s = do
       Just n -> return n
 
 
-newlock :: EM Loc b
+newlock :: EM Loc
 newlock = do
     (mem, n, a) <- get
     put (mem, n+1, a)
@@ -99,7 +99,7 @@ newlock = do
 
 
 -- TODO --- this should probably have it's  own value
-normal :: (Val Pos) -> EM (Val Pos) b
+normal :: (Val Pos) -> EM (Val Pos)
 normal v = case v of
   VExp exp env -> do
         v' <- local (const env)(eval exp)
@@ -109,7 +109,7 @@ normal v = case v of
 
 
 
-askVal :: String -> EM  (Val Pos) b
+askVal :: String -> EM  (Val Pos)
 askVal s = do
     loc <- getLoc s
     mem <- getMem
@@ -134,7 +134,7 @@ askVal s = do
 --     VExp exp map -> _
 
 
-eval :: Exp Pos -> EM (Val Pos) b
+eval :: Exp Pos -> EM (Val Pos)
 eval exp = case exp of
   EVar pos s -> do
     askVal s
@@ -287,14 +287,14 @@ eval exp = case exp of
 
 
 
-evalBranches :: Val Pos -> [PatternBranch Pos] -> EM (Val Pos)  b
+evalBranches :: Val Pos -> [PatternBranch Pos] -> EM (Val Pos) 
 evalBranches v [] = throwError $ "Pattern match non-exhaustive on value " ++ show v
 evalBranches v (p:ps) = do
       evalBranch v p `catchError` const (evalBranches v ps)
 
 
 
-evalBranch :: Val Pos -> PatternBranch Pos -> EM (Val Pos) b
+evalBranch :: Val Pos -> PatternBranch Pos -> EM (Val Pos)
 evalBranch v p = case p of
   PatternBranch pat exp -> do
       patenv <- matchPattern v pat
@@ -302,7 +302,7 @@ evalBranch v p = case p of
 
 
 
-matchPattern :: Val Pos -> Pattern Pos -> EM Env b
+matchPattern :: Val Pos -> Pattern Pos -> EM Env
 matchPattern v p = case p of
   PatternEmptyList _-> (do
         let (VADT name _) = v
@@ -357,7 +357,7 @@ matchPattern v p = case p of
 
 
 
-evalNorm :: Exp Pos -> EM (Val Pos) b
+evalNorm :: Exp Pos -> EM (Val Pos)
 evalNorm exp = do
     val <- eval exp
     normal val
