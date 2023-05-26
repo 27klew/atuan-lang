@@ -1,8 +1,5 @@
 -- Based on: https://github.com/mgrabmueller/TransformersStepByStep
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE InstanceSigs #-}
-
-
 
 module Atuan.AlgorithmW where
 

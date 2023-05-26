@@ -28,19 +28,19 @@ data Val a = VInt Integer
 
 type Loc = Int
 
-type State b = (Mem, Loc, ADTs  Atuan.Abs.BNFC'Position)
+type State = (Mem, Loc, ADTs Pos)
 
 type Mem = Data.Map.Map Loc (Val Pos)
 
 type Expected a = ExceptT String a
 
-type EM a b = ReaderT Env (StateT (State b)  (Expected Identity)) a
+type EM a b = ReaderT Env (StateT (State )  (Expected Identity)) a
 
 
 -- constrToName :: Constr' a -> String
 -- constrToName con = case con of { DataConstructor a (Atuan.Abs.Ident id) ta -> id}
 
-setupEnv :: ADTs Atuan.Abs.BNFC'Position -> (Env, State Atuan.Abs.BNFC'Position)
+setupEnv :: ADTs Atuan.Abs.BNFC'Position -> (Env, State)
 setupEnv adts =
     let constr = from_constr adts in
         let cs = Data.Map.toList constr
@@ -48,7 +48,7 @@ setupEnv adts =
                 foldr (flip f) (Data.Map.empty, (Data.Map.empty, 0, adts)) names
 
 
-f :: (Env, State Atuan.Abs.BNFC'Position) -> String -> (Env, State Atuan.Abs.BNFC'Position)
+f :: (Env, State) -> String -> (Env, State)
 f (env, (mem, loc, adts)) name =
     (insert name loc env, (insert loc (VADT name []) mem, loc+1, adts))
 
