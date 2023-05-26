@@ -18,7 +18,7 @@
   14 [?+] (ogólne polimorficzne i rekurencyjne typy algebraiczne)
   15 [?+] (zagnieżdżony pattern matching)
   Bonus
-  16 + (typy polimorficzne z algorytmem rekonstrukcji typów)
+  16 [?+] (typy polimorficzne z algorytmem rekonstrukcji typów)
   17 - (sprawdzenie kompletności pattern matchingu)
 
 

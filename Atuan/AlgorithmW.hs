@@ -187,6 +187,7 @@ data TIEnv = TIEnv  {}
 
 newtype TIState = TIState { tiSupply :: Int }
 
+-- IO można 
 type TI a = ExceptT String (ReaderT TIEnv (StateT TIState IO)) a
 
 runTI :: TI a -> IO (Either String a, TIState)

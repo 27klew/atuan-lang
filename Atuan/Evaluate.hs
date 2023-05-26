@@ -178,19 +178,15 @@ eval exp = case exp of
 
     local (union (fromList [(s, l)])) (eval exp2)
 
-    -- throwError "Not yet implemented"
-
 
   ELetRec pos s exp' exp2 -> do
     l <- newlock
     (mem, n, a) <- get
     env <- ask
-    let v = VExp exp' env
+    let v = VExp exp' (fromList [(s, l)] `union` env )
     put (insert l v mem, n, a)
-    -- TODO does it make sens? 
 
     local (union (fromList [(s, l)])) (eval exp2)
-
 
   EIf pos exp' exp2 exp3 -> do
     cond <- evalNorm exp'
@@ -337,12 +333,12 @@ matchPattern v p = case p of
     let (VADT name vs) = v
     unless (s == name)
       (throwError $ "Constructors don't match " ++ name ++ " vs." ++ s)
-    
+
     vs' <- mapM normal vs
 
     envs <- zipWithM matchPattern vs' pats
 
-    let env' = unions envs 
+    let env' = unions envs
 
     return env'
 
@@ -363,6 +359,6 @@ matchPattern v p = case p of
 
 evalNorm :: Exp Pos -> EM (Val Pos) b
 evalNorm exp = do
-    val <- eval exp 
+    val <- eval exp
     normal val
 
