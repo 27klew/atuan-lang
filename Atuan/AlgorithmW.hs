@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 
 
 import Control.Monad.Except(runExceptT, MonadError(throwError, catchError), ExceptT)
-import Control.Monad.Reader(ReaderT(runReaderT) )
+import Control.Monad.Reader(ReaderT(runReaderT), MonadReader (ask, local) )
 import Control.Monad.State(MonadState(put, get), StateT(runStateT) )
 import Control.Monad (foldM, unless)
 
@@ -162,12 +162,6 @@ composeSubst s1 s2   = Map.map (apply s1) s2 `Map.union` s1
 
 
 
-
-newtype TypeEnv = TypeEnv (Map.Map String Scheme) deriving (Show)
-
-
-
-
 remove                    ::  TypeEnv -> String -> TypeEnv
 remove (TypeEnv env) var  =  TypeEnv (Map.delete var env)
 
@@ -182,21 +176,19 @@ generalize env t  =   Scheme vars t
   where vars = Set.toList (freeVars t `Set.difference` freeVars env)
 
 
-
-
-data TIEnv = TIEnv  {}
+newtype TypeEnv = TypeEnv {getEnv :: Map.Map String Scheme} deriving (Show)
 
 newtype TIState = TIState { tiSupply :: Int }
 
--- IO można 
-type TI a = ExceptT String (ReaderT TIEnv (StateT TIState Identity)) a
+
+type TI a = ExceptT String (ReaderT TypeEnv (StateT TIState Identity)) a
 
 runTI :: TI a -> (Either String a, TIState)
 runTI t = do
     -- do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
     --    return (res, st)
     runIdentity (runStateT (runReaderT (runExceptT t) initTIEnv) initTIState)
-        where initTIEnv = TIEnv
+        where initTIEnv = emptyTypeEnv
               initTIState = TIState{tiSupply = 0}
 
 newTyVar :: String -> TI Type
@@ -225,7 +217,7 @@ mguList _ _ = throwError "Different number of type arguments."
 
 
 mgu :: Type -> Type -> TI Subst
-mgu (TFun l r) (TFun l' r')  =  do  
+mgu (TFun l r) (TFun l' r')  =  do
     s1 <- mgu l l'
     s2 <- mgu (apply s1 r) (apply s1 r')
     return (s1 `composeSubst` s2)
@@ -255,16 +247,16 @@ varBind u t  | t == TVar u           =  return nullSubst
 
 
 
-tiLit :: TypeEnv -> Lit a -> TI (Subst, Type)
-tiLit env (LInt _ _)   =  return (nullSubst, TInt)
-tiLit env (LBool _ _)  =  return (nullSubst, TBool)
-tiLit env (LList _ []) =  do
+tiLit :: Lit a -> TI (Subst, Type)
+tiLit (LInt _ _)   =  return (nullSubst, TInt)
+tiLit (LBool _ _)  =  return (nullSubst, TBool)
+tiLit (LList _ []) =  do
     tv <- newTyVar "a"
     return (nullSubst, ADT "List" [tv])
 
-tiLit env (LList pos (x:xs)) = do
-    (s, t) <- ti env x
-    (sl, tl) <- tiLit (apply s env) (LList pos xs)
+tiLit (LList pos (x:xs)) = do
+    (s, t) <- ti x
+    (sl, tl) <- local (apply s) (tiLit  (LList pos xs))
     s3 <- mgu tl (ADT "List" [apply sl t])
 
     -- catchError
@@ -274,66 +266,70 @@ tiLit env (LList pos (x:xs)) = do
 
 
 
-ti        ::  TypeEnv -> Exp a -> TI (Subst, Type)
-ti (TypeEnv env) (EVar pos n) =
-    case Map.lookup n env of
+ti  :: Exp a -> TI (Subst, Type)
+ti (EVar pos n) = do
+    env <- ask
+    case Map.lookup n (getEnv env) of
        Nothing     ->  throwError $ "unbound variable: " ++ n
        Just sigma  ->  do  t <- instantiate sigma
                            return (nullSubst, t)
-ti env (ELit pos l) = tiLit env l
-ti env (EAbs pos n e) =
-    do  tv <- newTyVar "a"
+ti (ELit pos l) = tiLit l
+ti (EAbs pos n e) = do
+        tv <- newTyVar "a"
+        env <- ask
         let TypeEnv env' = remove env n
             env'' = TypeEnv (env' `Map.union` Map.singleton n (Scheme [] tv))
-        (s1, t1) <- ti env'' e
+        (s1, t1) <- local (const env'') (ti e)
         return (s1, TFun (apply s1 tv) t1)
-ti env exp@(EApp pos e1 e2) =
-    do  tv <- newTyVar "a"
-        (s1, t1) <- ti env e1
-        (s2, t2) <- ti (apply s1 env) e2
+ti exp@(EApp pos e1 e2) = do
+        tv <- newTyVar "a"
+        (s1, t1) <- ti e1
+        (s2, t2) <- local (apply s1) (ti e2)
         s3 <- mgu (apply s2 t1) (TFun t2 tv)
         return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
     `catchError`
     \e -> throwError $ e ++ "\n in " ++ show exp
 
-ti env (ELet pos x e1 e2) =
-    do  (s1, t1) <- ti env e1
+ti (ELet pos x e1 e2) = do
+        (s1, t1) <- ti e1
+        env <- ask
         let TypeEnv env' = remove env x
             t' = generalize (apply s1 env) t1
             env'' = TypeEnv (Map.insert x t' env')
-        (s2, t2) <- ti (apply s1 env'') e2
+        (s2, t2) <- local (const $ apply s1 env'') (ti  e2)
         return (s1 `composeSubst` s2, t2)
 
 
-ti env (ELetRec pos x e1 e2) = do
+ti (ELetRec pos x e1 e2) = do
+    env <- ask
     let TypeEnv env' = remove env x
     tv <- newTyVar "a"
     let tv' = Scheme [] tv
-    (s1, t1) <- ti (TypeEnv $ Map.insert x tv' env') e1
+    (s1, t1) <- local (const $ TypeEnv (Map.insert x tv' env')) (ti  e1)
 
     -- (s1, t1) <- ti env e1
     let t' = generalize (apply s1 (TypeEnv env')) t1
     let env'' = TypeEnv (Map.insert x t' env')
-    (s2, t2) <- ti (apply s1 env'') e2
+    (s2, t2) <- local (const (apply s1 env'')) (ti  e2)
     return (s1 `composeSubst` s2, t2)
 
 
-ti env (EIf pos cond e1 e2) = do
-    (sc, tc) <- ti env cond
+ti (EIf pos cond e1 e2) = do
+    (sc, tc) <- ti cond
     sc' <- mgu (apply sc tc) TBool
 
-    (s1, t1) <- ti (apply sc' env) e1
-    (s2, t2) <- ti (apply s1 env) e2
+    (s1, t1) <- local (apply sc') (ti e1)
+    (s2, t2) <- local (apply s1) (ti e2)
     s3 <- mgu (apply s2 t1) (apply s2 t2)
 
     return (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
 
 
 
-ti env (EBinOp pos e1 op e2) = do
+ti (EBinOp pos e1 op e2) = do
     let ta = opBinArg op
-    (s1, t1) <- ti env e1
-    (s2, t2) <- ti (apply s1 env) e2
+    (s1, t1) <- ti e1
+    (s2, t2) <- local (apply s1) (ti e2)
     s3 <- mgu (apply s2 t1) (apply s2 t2)
     s4 <- mgu (apply s3 t1) ta
 
@@ -348,9 +344,9 @@ ti env (EBinOp pos e1 op e2) = do
     -- return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
 
 
-ti env (EUnOp pos op e) = do
+ti (EUnOp pos op e) = do
     let targ = opUnArg op
-    (s1, t1) <- ti env e
+    (s1, t1) <- ti e
     s2 <- mgu (apply s1 t1) targ
 
     let tres = opUnRes op
@@ -358,17 +354,12 @@ ti env (EUnOp pos op e) = do
     return (s2 `composeSubst` s1, apply s2 tres)
 
 
--- tiBranch :: TypeEnv -> PatternBranch -> Type -> TI (Subst, Type)
 
-ti env (EMatch pos i brs) = do
-    (s, t) <- ti env (EVar pos i)
-
-    rs <- mapM (tiBranch env t) brs
-
+ti (EMatch pos i brs) = do
+    (s, t) <- ti (EVar pos i)
+    rs <- mapM (tiBranch t) brs
     tv <- newTyVar "a"
-    rs' <- foldM unifTypes (nullSubst, tv) rs
-
-    return rs'
+    foldM unifTypes (nullSubst, tv) rs
 
 
 nullTypeEnv = TypeEnv Map.empty
@@ -403,13 +394,10 @@ isNullEnv (TypeEnv e) = null e
 
 
 
-fromEnv :: TypeEnv -> Map.Map  String Scheme
-fromEnv (TypeEnv map) = map
 
 
-
-tiPattern :: TypeEnv -> Pattern a ->  TI (Subst, Type, TypeEnv)
-tiPattern env pat = case pat of
+tiPattern :: Pattern a ->  TI (Subst, Type, TypeEnv)
+tiPattern pat = case pat of
   PatternEmptyList pos -> do
         tv <- newTyVar "a"
         return (nullSubst, (ADT "List" [tv]), nullTypeEnv)
@@ -419,15 +407,15 @@ tiPattern env pat = case pat of
     let tv' = ADT "List" [tv]
 
 
-    (s1, t1, tenv1) <- tiPattern env pat'
-    (s2, t2, tenv2) <- tiPattern env pat2
+    (s1, t1, tenv1) <- tiPattern pat'
+    (s2, t2, tenv2) <- tiPattern pat2
 
     s2' <- mgu (apply s2 (ADT "List" [t1])) (apply s2 t2)
 
     s3 <- mgu (apply s2' (ADT "List" [t1])) (apply s2' tv')
     s3' <- mgu (apply s3 t2) (apply s3 tv')
 
-    unless (null $ Map.intersection (fromEnv tenv1) (fromEnv tenv2))
+    unless (null $ Map.intersection (getEnv tenv1) (getEnv tenv2))
         (throwError $ "Multiple declarations of " )
 
     -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
@@ -441,9 +429,9 @@ tiPattern env pat = case pat of
     -- return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (ADT "List" [t2]))
 
   PatternConstr pos con pats -> do
-    (s, t) <- ti env (EVar pos con)
+    (s, t) <- ti (EVar pos con)
 
-    ts <- mapM (tiPattern env) pats
+    ts <- mapM tiPattern pats
 
     let (ss, tys, ens) = unzip3 ts
 
@@ -471,7 +459,7 @@ tiPattern env pat = case pat of
 
     -- s2 <- mgu restype (apply s' (ADT name tys'))
 
-    return (s2 `composeSubst` s', apply s2 tv , apply s2 ens')  
+    return (s2 `composeSubst` s', apply s2 tv , apply s2 ens')
 
 
     -- trace ("tp: " ++ show (apply s2 tp) ++ "\t show tys': " ++ show (apply s2 tys') ++ "\t show tys" ++show tys ++ "\n") 
@@ -494,15 +482,17 @@ unionEnvDisjoint env1 env2 = do
 
 emptyTypeEnv = TypeEnv Map.empty
 
-tiBranch :: TypeEnv ->  Type -> PatternBranch a -> TI (Subst, Type)
-tiBranch env tvar (PatternBranch pat exp)  = do
-    (s, t, tenv) <- tiPattern env pat
+tiBranch :: Type -> PatternBranch a -> TI (Subst, Type)
+tiBranch tvar (PatternBranch pat exp)  = do
+    (s, t, tenv) <- tiPattern pat
 
 
     s' <- mgu (apply s t) (apply s tvar)
 
     let tenv' = apply s' tenv
 
+
+    env <- ask
     let env' = unionEnv tenv' env
 
     -- throwError $ 
@@ -511,14 +501,14 @@ tiBranch env tvar (PatternBranch pat exp)  = do
     --      ++ "\n tenv: " ++ show tenv 
 
 
-    (s1, t1) <- ti (apply s' env') exp
+    (s1, t1) <- local (const $ apply s' env') (ti exp)
     return (s1 `composeSubst` s' `composeSubst` s, t1)
 
 
 
 typeInference :: Map.Map String Scheme -> Exp a -> TI Type
-typeInference env e =
-    do  (s, t) <- ti (TypeEnv env) e
+typeInference env e = do  
+        (s, t) <- local (const $ TypeEnv env) (ti e)
         return (apply s t)
 
 
@@ -670,7 +660,7 @@ e19 = ELetRec p_ "iter"
 
 
 test' :: Exp a -> Either String Type
-test' e =   
+test' e =
     let (res, _) = runTI (typeInference Map.empty e) in
     res
 
@@ -696,7 +686,7 @@ defaultEnv = TypeEnv $ Map.fromList
 
 
 unionEnv :: TypeEnv -> TypeEnv -> TypeEnv
-unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2) 
+unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2)
 
 
 testEnv :: TypeEnv -> Exp a -> IO ()
