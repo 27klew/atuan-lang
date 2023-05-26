@@ -20,6 +20,7 @@ import Control.Monad (foldM, unless)
 import qualified Text.PrettyPrint as PP
 import Debug.Trace
 import Atuan.Abs (BNFC'Position)
+import Control.Monad.Identity (Identity (runIdentity))
 
 
 data Exp a =  EVar a String
@@ -188,14 +189,15 @@ data TIEnv = TIEnv  {}
 newtype TIState = TIState { tiSupply :: Int }
 
 -- IO można 
-type TI a = ExceptT String (ReaderT TIEnv (StateT TIState IO)) a
+type TI a = ExceptT String (ReaderT TIEnv (StateT TIState Identity)) a
 
-runTI :: TI a -> IO (Either String a, TIState)
-runTI t =
-    do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
-       return (res, st)
-  where initTIEnv = TIEnv
-        initTIState = TIState{tiSupply = 0}
+runTI :: TI a -> (Either String a, TIState)
+runTI t = do
+    -- do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
+    --    return (res, st)
+    runIdentity (runStateT (runReaderT (runExceptT t) initTIEnv) initTIState)
+        where initTIEnv = TIEnv
+              initTIState = TIState{tiSupply = 0}
 
 newTyVar :: String -> TI Type
 newTyVar prefix =
@@ -667,16 +669,16 @@ e19 = ELetRec p_ "iter"
     )
 
 
-test' :: Exp a -> IO (Either String Type)
-test' e = do  
-    (res, _) <- runTI (typeInference Map.empty e)
-    return res
+test' :: Exp a -> Either String Type
+test' e =   
+    let (res, _) = runTI (typeInference Map.empty e) in
+    res
 
 
 
 test :: Exp a -> IO ()
 test e =
-    do  (res, _) <- runTI (typeInference Map.empty e)
+    let  (res, _) = runTI (typeInference Map.empty e) in
         case res of
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
@@ -700,7 +702,7 @@ unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2)
 testEnv :: TypeEnv -> Exp a -> IO ()
 testEnv env e =
     let TypeEnv env' = unionEnv defaultEnv env in
-    do  (res, _) <- runTI (typeInference env' e)
+    let  (res, _) = runTI (typeInference env' e) in
         case res of
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
@@ -708,7 +710,7 @@ testEnv env e =
 testEnv' :: TypeEnv -> Exp a -> IO (Either String Type)
 testEnv' env e =
     let TypeEnv env' = unionEnv defaultEnv env in
-    do  (res, _) <- runTI (typeInference env' e)
+    let  (res, _) = runTI (typeInference env' e) in
         return res
 
 
