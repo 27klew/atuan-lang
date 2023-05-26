@@ -19,18 +19,19 @@ import Control.Monad (zipWithM)
 type Env =  Data.Map.Map String Loc
 
 
-data Val a = VInt Integer
+data Val' a = VInt Integer
     | VBool Bool
     | VFun String Env (Exp a)
-    | VADT String [Val a]
+    | VADT String [Val' a]
     | VExp (Exp a) Env deriving (Eq, Ord, Show)
 
+type Val = Val' Pos
 
 type Loc = Int
 
 type State = (Mem, Loc, ADTs Pos)
 
-type Mem = Data.Map.Map Loc (Val Pos)
+type Mem = Data.Map.Map Loc (Val)
 
 type Expected a = ExceptT String a
 
@@ -53,10 +54,10 @@ f (env, (mem, loc, adts)) name =
     (insert name loc env, (insert loc (VADT name []) mem, loc+1, adts))
 
 
-testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val Pos)
+testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val)
 testEval adts exp =
     let x = do
-        exp' <- eval exp :: EM (Val Pos)
+        exp' <- eval exp :: EM (Val)
         normal exp'
     in
     let (env, state) = setupEnv adts in
@@ -91,7 +92,7 @@ newlock = do
     return n
 
 
--- setNew :: String -> Val -> EM Loc
+-- setNew :: String -> Val' -> EM Loc
 -- setNew s v = do
 --     l <- newlock
 --     (mem, nnnn) <- get
@@ -99,7 +100,7 @@ newlock = do
 
 
 -- TODO --- this should probably have it's  own value
-normal :: (Val Pos) -> EM (Val Pos)
+normal :: (Val) -> EM (Val)
 normal v = case v of
   VExp exp env -> do
         v' <- local (const env)(eval exp)
@@ -109,8 +110,8 @@ normal v = case v of
 
 
 
-askVal :: String -> EM  (Val Pos)
-askVal s = do
+askVal' :: String -> EM  (Val)
+askVal' s = do
     loc <- getLoc s
     mem <- getMem
 
@@ -124,8 +125,8 @@ askVal s = do
 --     let x = (from_name adts) 
 --     throwError "aaa"
 
--- instance HasPosition a => HasPosition (Val a) where
---   -- hasPosition :: Val a -> Pos
+-- instance HasPosition a => HasPosition (Val' a) where
+--   -- hasPosition :: Val' a -> Pos
 --   hasPosition v = case v of
 --     VInt n -> _
 --     VBool b -> _
@@ -134,10 +135,10 @@ askVal s = do
 --     VExp exp map -> _
 
 
-eval :: Exp Pos -> EM (Val Pos)
+eval :: Exp Pos -> EM (Val)
 eval exp = case exp of
   EVar pos s -> do
-    askVal s
+    askVal' s
 
   ELit _ lit -> case lit of
     LInt pos n -> return $ VInt n
@@ -287,14 +288,14 @@ eval exp = case exp of
 
 
 
-evalBranches :: Val Pos -> [PatternBranch Pos] -> EM (Val Pos) 
+evalBranches :: Val -> [PatternBranch Pos] -> EM (Val) 
 evalBranches v [] = throwError $ "Pattern match non-exhaustive on value " ++ show v
 evalBranches v (p:ps) = do
       evalBranch v p `catchError` const (evalBranches v ps)
 
 
 
-evalBranch :: Val Pos -> PatternBranch Pos -> EM (Val Pos)
+evalBranch :: Val -> PatternBranch Pos -> EM (Val)
 evalBranch v p = case p of
   PatternBranch pat exp -> do
       patenv <- matchPattern v pat
@@ -302,7 +303,7 @@ evalBranch v p = case p of
 
 
 
-matchPattern :: Val Pos -> Pattern Pos -> EM Env
+matchPattern :: Val -> Pattern Pos -> EM Env
 matchPattern v p = case p of
   PatternEmptyList _-> (do
         let (VADT name _) = v
@@ -357,7 +358,7 @@ matchPattern v p = case p of
 
 
 
-evalNorm :: Exp Pos -> EM (Val Pos)
+evalNorm :: Exp Pos -> EM (Val)
 evalNorm exp = do
     val <- eval exp
     normal val

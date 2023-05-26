@@ -23,10 +23,10 @@ import Data.Maybe (isNothing)
 -- type TypeEnv a = Map Ident ([TVar' a], [Constr' a])
 
 
-data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving Show
+data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving (Show, Eq, Ord)
 
 
-data ADTs a = ADTs {from_name :: Map Ident (ADT a) , from_constr :: Map Ident (Constr' a)}
+data ADTs a = ADTs {from_name :: Map Ident (ADT a) , from_constr :: Map Ident (Constr' a)} deriving (Show, Eq, Ord)
 
 
 type SE a b = (StateT (ADTs b) (ExceptT String Identity)) a

@@ -36,7 +36,7 @@ import Data.Map (elems, toList, keys, Map, lookup, filter)
 
 import Atuan.Translate (Translatable (translate), translateConstrs)
 import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv')
-import qualified Atuan.Evaluate as Eval (eval, Val(..), testEval)
+import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval)
 
 
 debug = False
