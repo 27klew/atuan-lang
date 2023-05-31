@@ -94,9 +94,8 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
       (throwError $ "Typename should start with capital letters:" ++ show x)
 
 
-
-    mapM_ collectType types
     collectType (builtInList ann)
+    mapM_ collectType types
 
     types' <- get
 
@@ -198,6 +197,9 @@ addType  name vars constr = do
   let conide = map identConstr constr
 
   let adt = ADT name vars conide
+
+  when (member name types)
+    (throwError $ "Multiple definitions of : " ++ show name )
 
   let types' = insert name adt types
 
