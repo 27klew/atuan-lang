@@ -135,6 +135,7 @@ collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
 
     addType ident vars constr'
 
+-- TODO builtin List should be first
 
 identConstr :: Constr' a -> Ident
 identConstr (DataConstructor _ i _) = i
@@ -193,7 +194,7 @@ addType  name vars constr = do
 
 findDuplicate :: Eq a => [a] -> Maybe a
 findDuplicate [] = Nothing
-findDuplicate (_:[]) = Nothing
+findDuplicate [_] = Nothing
 findDuplicate (x:y:xs) =
   if x == y then Just x else findDuplicate (y:xs)
 
@@ -305,6 +306,10 @@ identToVar x = case x of
 identToVarConstr :: Show a => Constr' a -> SE (Constr' a) a
 identToVarConstr (DataConstructor pos ident (TypeAnnotation ps ty)) = do
     ty' <- identToVar ty
+    adts <- get
+    let constrs = keys $ from_constr adts
+    when (ident `elem` constrs)
+      (throwError $ "Multiple declarations of constructor " ++ show ident ++ " at position " ++ show pos)
     return (DataConstructor pos ident (TypeAnnotation ps ty'))
 
 
