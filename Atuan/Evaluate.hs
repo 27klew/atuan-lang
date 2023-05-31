@@ -4,7 +4,7 @@ module Atuan.Evaluate where
 import Atuan.AlgorithmW (Exp(..), Lit (..), OpBin (..), MulOp (..), AddOp (..), RelOp (..), OpUn (..), PatternBranch (..), Pattern (..))
 
 import Data.Map(Map(..), member, lookup, union, fromList, insert, empty, toList, unions)
-import Control.Monad.Reader (ReaderT (runReaderT), MonadReader (ask, local), runReader, asks)
+import Control.Monad.Reader (ReaderT (runReaderT), MonadReader (ask, local), runReader)
 import Control.Monad.State (StateT (runStateT), MonadState (..), evalStateT)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.Except (ExceptT, throwError, unless, runExceptT, MonadError (catchError))
@@ -16,11 +16,8 @@ import Debug.Trace
 import Control.Monad (zipWithM)
 
 
--- type Env =  Data.Map.Map String Loc
+type Env =  Data.Map.Map String Loc
 
-type ValEnv = Data.Map.Map String Val
-
-data Env = Env {getVals :: ValEnv, getADTs :: ADTs Pos} deriving (Eq, Ord, Show)
 
 data Val' a = VInt Integer
     | VBool Bool
@@ -30,40 +27,69 @@ data Val' a = VInt Integer
 
 type Val = Val' Pos
 
+type Loc = Int
+
+type State = (Mem, Loc, ADTs Pos)
+
+type Mem = Data.Map.Map Loc (Val)
+
 type Expected a = ExceptT String a
 
-type EM a = ReaderT Env ( Expected Identity) a
+type EM a = ReaderT Env (StateT State (Expected Identity)) a
 
 
 -- constrToName :: Constr' a -> String
 -- constrToName con = case con of { DataConstructor a (Atuan.Abs.Ident id) ta -> id}
 
-setupEnv :: ADTs Pos -> Env
+setupEnv :: ADTs Atuan.Abs.BNFC'Position -> (Env, State)
 setupEnv adts =
     let constr = from_constr adts in
         let cs = Data.Map.toList constr
             in let names = map (itname . fst) cs in
-                foldr (flip f) (Env Data.Map.empty adts) names
-
-f :: Env -> String -> Env
-f env name =
-    Env (insert name (VADT name []) (getVals env)) (getADTs env)
+                foldr (flip f) (Data.Map.empty, (Data.Map.empty, 0, adts)) names
 
 
-testEval :: ADTs Pos -> Exp Pos -> Either String (Val)
+f :: (Env, State) -> String -> (Env, State)
+f (env, (mem, loc, adts)) name =
+    (insert name loc env, (insert loc (VADT name []) mem, loc+1, adts))
+
+
+testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val)
 testEval adts exp =
     let x = do
         exp' <- eval exp :: EM (Val)
         normal exp'
     in
-    let env = setupEnv adts in
+    let (env, state) = setupEnv adts in
     let y = runReaderT x env in
-    let w = runExceptT y in
+    let z = evalStateT y state in
+    let w = runExceptT z in
     let q = runIdentity w in
         q
     -- let v = runReaderT Data.Map.empty (runStateT (Data.Map.empty, 0) (runExceptT (eval exp))) in
         -- v
 
+
+
+getMem :: EM Mem
+getMem = do
+    (mem, _, _) <- get
+    return mem
+
+
+getLoc :: String -> EM Loc
+getLoc s = do
+    env <- ask
+    case  Data.Map.lookup s env of
+      Nothing -> throwError $ "Unknown variable: " ++ s
+      Just n -> return n
+
+
+newlock :: EM Loc
+newlock = do
+    (mem, n, a) <- get
+    put (mem, n+1, a)
+    return n
 
 
 -- setNew :: String -> Val' -> EM Loc
@@ -83,30 +109,15 @@ normal v = case v of
   v' -> return v'
 
 
-askVals :: EM ValEnv
-askVals = do asks getVals
 
-
-
-askVal' :: String -> EM Val
+askVal' :: String -> EM  (Val)
 askVal' s = do
-    vals <- askVals
+    loc <- getLoc s
+    mem <- getMem
 
-    case Data.Map.lookup s vals of
-      Nothing -> throwError $ "Unknown variable: " ++ show s
+    case Data.Map.lookup loc mem of
+      Nothing -> throwError $ "Unknown location: " ++ show loc
       Just val -> return val
-
-
-unionVal :: String -> Val -> Env -> Env
-unionVal s v (Env env adts) =
-  Env (union (fromList [(s, v)]) env) adts
-
-
-bindVal :: String -> Val -> EM a -> EM a
-bindVal s v m = do
-  env <- ask
-  let env' = unionVal s v env
-  local (const env') m
 
 
 -- setup :: ADTs b -> EM () b
@@ -143,17 +154,10 @@ eval exp = case exp of
 
     case f of
       VFun s map exp3 -> do
-          -- l <- newlock
-          -- (mem, n, a) <- get
-          -- env <- ask
-
-          -- put (insert l x mem, n, a)
-
-
-          local (const $ unionVal s x map) (eval exp3)
-          -- bindVal s x (eval exp3)
-
-          -- local (union (fromList [(s, l)] `union` map)) (eval exp3)
+          l <- newlock
+          (mem, n, a) <- get
+          put (insert l x mem, n, a)
+          local (union (fromList [(s, l)] `union` map)) (eval exp3)
 
       VADT s vs ->
         return $ VADT s (vs ++ [x])
@@ -168,33 +172,22 @@ eval exp = case exp of
 
   ELet pos s exp' exp2 -> do
     v <- eval exp'
-    -- l <- newlock
-    -- (mem, n, a) <- get
-    -- put (insert l v mem, n, a)
+    l <- newlock
+    (mem, n, a) <- get
+    put (insert l v mem, n, a)
 
-    bindVal s v (eval exp2)
 
-    -- local (union (fromList [(s, l)])) (eval exp2)
+    local (union (fromList [(s, l)])) (eval exp2)
 
 
   ELetRec pos s exp' exp2 -> do
-    -- l <- newlock
-    -- (mem, n, a) <- get
+    l <- newlock
+    (mem, n, a) <- get
     env <- ask
+    let v = VExp exp' (fromList [(s, l)] `union` env )
+    put (insert l v mem, n, a)
 
-    -- TODO tutaj jest jakaś wartość zależna sama od siebie, 
-    -- trzeba to jakoś naprawić, bo to powoduje głupie zachowanie np przy częściowej aplikacji
-    -- wcześniej to było rozdzielone na wartość i lokację więc było ok
-    -- może powinno przechowywać stare środowisko (bez siebie) i swoją nazwę i poprawiać na bieżąco?
-
-    
-
-    let v = VExp exp' (unionVal s v env) -- (fromList [(s, v)] `union` env )
-
-    -- put (insert l v mem, n, a)
-
-    bindVal s v (eval exp2)
-    -- local (union (fromList [(s, l)])) (eval exp2)
+    local (union (fromList [(s, l)])) (eval exp2)
 
   EIf pos exp' exp2 exp3 -> do
     cond <- evalNorm exp'
@@ -295,28 +288,22 @@ eval exp = case exp of
 
 
 
-evalBranches :: Val -> [PatternBranch Pos] -> EM (Val)
+evalBranches :: Val -> [PatternBranch Pos] -> EM (Val) 
 evalBranches v [] = throwError $ "Pattern match non-exhaustive on value " ++ show v
 evalBranches v (p:ps) = do
       evalBranch v p `catchError` const (evalBranches v ps)
 
 
 
--- TODO: Throw error if adts different?
-unionEnv :: ValEnv -> Env -> Env
-unionEnv env1 (Env env2 adts) =
-    Env (env1 `union` env2) adts
-
-
-evalBranch :: Val -> PatternBranch Pos -> EM Val
+evalBranch :: Val -> PatternBranch Pos -> EM (Val)
 evalBranch v p = case p of
   PatternBranch pat exp -> do
       patenv <- matchPattern v pat
-      local (unionEnv patenv) (eval exp)
+      local (Data.Map.union patenv) (eval exp)
 
 
 
-matchPattern :: Val -> Pattern Pos -> EM ValEnv
+matchPattern :: Val -> Pattern Pos -> EM Env
 matchPattern v p = case p of
   PatternEmptyList _-> (do
         let (VADT name _) = v
@@ -359,19 +346,19 @@ matchPattern v p = case p of
     -- throwError "Match Pattern not yet implemented"
 
   PatternIdent _ s -> (do
-          -- l <- newlock
+          l <- newlock
 
-          -- (mem, n, adts) <- get
- 
-          -- put (insert l v mem, n, adts)
+          (mem, n, adts) <- get
 
-          return $ Data.Map.fromList [(s, v)]
+          put (insert l v mem, n, adts)
+
+          return $ Data.Map.fromList [(s, l)]
         )
 
 
 
 
-evalNorm :: Exp Pos -> EM Val
+evalNorm :: Exp Pos -> EM (Val)
 evalNorm exp = do
     val <- eval exp
     normal val
