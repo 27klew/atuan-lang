@@ -100,13 +100,17 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
 
     types' <- get
 
+
+    -- mapM_ checkType 
+
     -- TODO
-    -- let con = map snd (elems types)
+    let con = elems $ from_constr types'
+    mapM_ checkConstructor con
+  
     -- let con' = map (\(DataConstructor _ id _) -> id) (concat con)
     -- let con'' = sort con'
     -- checkConstructors con''
 
-    return ()
 
 builtInList dummy =
   TopType dummy (Atuan.Abs.TypeDefinition dummy (Ident "List") vars constr)
@@ -144,6 +148,40 @@ identType :: Constr' a -> Type' a
 identType (DataConstructor _ _ (TypeAnnotation _ t)) = t
 
 
+checkConstructor :: Show a => Constr' a -> SE () a
+checkConstructor ( DataConstructor a id (TypeAnnotation a' ty)) = checkType ty 
+
+checkType :: Show a => Type' a -> SE () a
+checkType t = case t of 
+  TypeInt a -> return ()
+  TypeBool a -> return ()
+  TypeList a ty -> 
+      checkType ty
+  TypeIdent a id -> do
+    adts <- get
+    let adt = Data.Map.lookup id (from_name adts)
+    case adt of
+      Nothing -> throwError $ "Unknown type: " ++ show id
+      Just (ADT id' tvs ids) -> (do
+              unless (length tvs == 0)
+                (throwError $ "Type " ++ show id ++ "requires type variables (at" ++ show a ++ ")")
+            )
+  
+  TypeApp a id tys -> do
+      adts <- get
+      let adt = Data.Map.lookup id (from_name adts)
+      case adt of
+        Nothing -> throwError $ "Unknown type: " ++ show id
+        Just (ADT id' tvs ids) -> (do
+              unless (length tvs == length tys)
+                (throwError $ "Mismatch on type variable count for type " ++ show id ++ "at " ++ show a)
+              mapM_ checkType tys
+          )
+
+  TypeVar a id -> return ()
+  TypeFunc a ty ty' -> do
+    checkType ty
+    checkType ty'
 
 addConstr :: Constr' a -> SE () a
 addConstr constr = do
