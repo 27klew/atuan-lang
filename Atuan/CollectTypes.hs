@@ -124,7 +124,7 @@ builtInList dummy =
 collectType :: Show a => Atuan.Abs.Top' a -> SE () a
 collectType (TopDef _ _ ) = return ()
 collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
-    -- checkTypeName ident
+    checkTypeName ident
     mapM_ checkTypeVar vars
     mapM_ (checkDataConstr ident vars) constr
     constr' <-  mapM identToVarConstr constr
