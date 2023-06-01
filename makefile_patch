@@ -1,0 +1,20 @@
+--- Makefile	2023-06-01 18:46:18.383462421 +0200
++++ Makefile_good	2023-06-01 18:46:09.663374140 +0200
+@@ -14,7 +14,7 @@
+ 
+ # Default goal.
+ 
+-all : Atuan/Test
++all : Atuan/Interpreter
+ 
+ # Rules for building the parser.
+ 
+@@ -27,7 +27,7 @@
+ %.hs : %.x
+ 	${ALEX} ${ALEX_OPTS} $<
+ 
+-Atuan/Test : Atuan/Abs.hs Atuan/Lex.hs Atuan/Par.hs Atuan/Print.hs Atuan/Test.hs
++Atuan/Interpreter : Atuan/Abs.hs Atuan/Lex.hs Atuan/Par.hs Atuan/Print.hs Atuan/Test.hs Atuan/CollectTypes.hs Atuan/AlgorithmW.hs Atuan/Translate.hs
+ 	${GHC} ${GHC_OPTS} $@
+ 
+ # Rules for cleaning generated files.
