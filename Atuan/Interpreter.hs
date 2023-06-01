@@ -30,7 +30,6 @@ import Atuan.Par   ( pProgram, myLexer )
 import Atuan.Print ( Print, printTree )
 import Atuan.Skel  ()
 import Atuan.CollectTypes ( collect , ADTs (ADTs, from_name, from_constr), ADT (ADT) )
-import Atuan.TypeCheck (typecheck)
 import Data.List ( (++), map, concat, unlines, intercalate, filter )
 import Data.Map (elems, toList, keys, Map, lookup, filter)
 
