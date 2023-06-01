@@ -93,16 +93,13 @@ collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
   mapM_ checkTypeVar vars
   let vars' = map varName vars
   let v = findDuplicate vars'
-  unless (v == Nothing) 
+  unless (isNothing v)
     (throwError $ "Duplicate variable " ++ show v ++ "at position " ++ show pos)
 
   constr' <- mapM identToVarConstr constr
   mapM_ (checkDataConstr ident vars) constr'
 
   m <- get
-
-  --  TODO checkIdentUnique ident m
-
   addType ident vars constr'
 
 identConstr :: Constr' a -> Ident
@@ -248,13 +245,13 @@ checkDataConstr id vars (DataConstructor pos ident (TypeAnnotation _ ty)) = do
         (throwError $ "Data constructor should specialize all type variables " ++ show id' ++ " at " ++ show a)
     t -> throwError $ "Data constructor should result in creation of value in type " ++ show id ++ " received " ++ show t
 
-  let tvs = getVars ty 
+  let tvs = getVars ty
   let tvr = getVars t
 
 
   unless (tvs `Data.Set.isSubsetOf` tvr)
-    (throwError $ 
-      "GADTs with variables not present in result re not supported. offending varibles: " 
+    (throwError $
+      "GADTs with variables not present in result re not supported. offending varibles: "
           ++ show (tvs `Data.Set.difference` tvr)
           )
 

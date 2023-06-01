@@ -452,15 +452,8 @@ tiPattern pat = case pat of
 
     s2 <- mgu tp t'
 
-
-
-    -- s2 <- mgu restype (apply s' (ADT name tys'))
-
     return (s2 `composeSubst` s', apply s2 tv , apply s2 ens')
 
-
-    -- trace ("tp: " ++ show (apply s2 tp) ++ "\t show tys': " ++ show (apply s2 tys') ++ "\t show tys" ++show tys ++ "\n") 
-        -- (throwError $ "TODO Matching over ADT is noy yet implemented s: "++ show s ++ ", t: " ++ show t)
 
   PatternIdent pos s -> do
     tv <- newTyVar "a"
