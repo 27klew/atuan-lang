@@ -40,8 +40,7 @@ collectProgram :: Show a => Atuan.Abs.Program' a -> SE () a
 collectProgram (Atuan.Abs.ProgramText ann tops) = do
     let types = filter isType tops
 
-    collectType (builtInList ann)
-    mapM_ collectType types
+    mapM_ collectType (builtInList ann:types)
 
     types' <- get
     let con = elems $ from_constr types'
