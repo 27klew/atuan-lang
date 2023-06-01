@@ -28,6 +28,31 @@ data ADTs a = ADTs {
 type SE a b = (StateT (ADTs b) (ExceptT String Identity)) a
 
 
+-----------------------------------------------------------------------
+--                   MAIN COLLECTION FUNCTION                        --
+-----------------------------------------------------------------------
+
+collect :: Show a => Atuan.Abs.Program' a -> Either String (ADTs a)
+collect program = runIdentity (runExceptT (execStateT ( collectProgram program) emptyADTs))
+
+
+
+collectProgram :: Show a => Atuan.Abs.Program' a -> SE () a
+collectProgram (Atuan.Abs.ProgramText ann tops) = do
+    let types = filter isType tops
+    let names = map topName types
+    let names' = sort names
+
+    collectType (builtInList ann)
+    mapM_ collectType types
+
+    types' <- get
+
+    let con = elems $ from_constr types'
+    mapM_ checkConstructor con
+
+
+
 note :: e -> Maybe a -> Except e a
 note e Nothing  = throwError e
 note _ (Just a) = return a
@@ -49,9 +74,6 @@ getType i = do
 emptyADTs = ADTs empty empty
 
 
-collect :: Show a => Atuan.Abs.Program' a -> Either String (ADTs a)
-collect program = runIdentity (runExceptT (execStateT ( collectProgram program) emptyADTs))
-
 
 isType :: Top' a -> Bool
 isType (TopType _ _ ) = True
@@ -62,19 +84,6 @@ topName (TopType _ (TypeDefinition _ id _ _ )) = id
 topName (TopDef _ _ ) = error "Type Collection should not be called on definition."
 
 
-collectProgram :: Show a => Atuan.Abs.Program' a -> SE () a
-collectProgram (Atuan.Abs.ProgramText ann tops) = do
-    let types = filter isType tops
-    let names = map topName types
-    let names' = sort names
-
-    collectType (builtInList ann)
-    mapM_ collectType types
-
-    types' <- get
-
-    let con = elems $ from_constr types'
-    mapM_ checkConstructor con
 
 
 builtInList dummy =
