@@ -1,4 +1,5 @@
 
+
 data Tree a where
 	Node :: a -> (Tree a) -> (Tree a) -> (Tree a)
 	Leaf :: (Tree a)

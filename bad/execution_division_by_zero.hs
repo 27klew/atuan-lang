@@ -1,3 +1,4 @@
+-- division by y == 0.
 
 x = 4;
 y = x - 4;

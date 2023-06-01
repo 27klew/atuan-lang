@@ -1,3 +1,4 @@
+-- use of undeclared variable z.
 
 y = [1, 2, 3];
 

@@ -1,3 +1,7 @@
+-- rule: Type names should be unique.
+-- here: There are two definitions of Tree.
+-- phase: TypeCollection
+
 
 data Tree a where
 	Node :: a -> (Tree a)

@@ -1,4 +1,4 @@
-
+-- Variable can appear only once in pattern
 
 y = [1, 2, 3];
 
