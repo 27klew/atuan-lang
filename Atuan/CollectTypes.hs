@@ -1,5 +1,5 @@
 
-module Atuan.CollectTypes where
+module Atuan.CollectTypes(collect, ADTs(..), isType, ADT(..)) where
 
 import Atuan.Abs (Program'(..), Top'(..), TypeDef'(..), Ident(..), TVar'(..), Constr'(..), TVar, Type' (TypeFunc, TypeIdent, TypeApp, TypeInt, TypeBool, TypeList, TypeVar), TypeAnnot' (TypeAnnotation))
 import Control.Monad.Reader (Reader, ReaderT, MonadReader (ask), MonadTrans (lift))
@@ -48,15 +48,13 @@ note _ (Just a) = return a
 getConstr :: Ident -> SE (Constr' a) a
 getConstr i = do
   adts <- get
-  constr <- lift $ note ("No such constructor" ++ show i) (Data.Map.lookup i (from_constr adts))
-  return constr
+  lift $ note ("No such constructor" ++ show i) (Data.Map.lookup i (from_constr adts))
 
 
 getType :: Ident -> SE (ADT a) a
 getType i = do
   adts <- get
-  adt <- lift $ note ("No such type " ++ show i) (Data.Map.lookup i (from_name adts))
-  return adt
+  lift $ note ("No such type " ++ show i) (Data.Map.lookup i (from_name adts))
 
 
 
@@ -74,7 +72,7 @@ isType _ = False
 
 topName :: Top' a -> Ident
 topName (TopType _ (TypeDefinition _ id _ _ )) = id
--- topNamae (topDef _ _ ) TODO 
+topName (TopDef _ _ ) = error "Type Collection should not be called on definition."
 
 
 collectProgram :: Show a => Atuan.Abs.Program' a -> SE () a
@@ -105,7 +103,7 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
     -- TODO
     let con = elems $ from_constr types'
     mapM_ checkConstructor con
-  
+
     -- let con' = map (\(DataConstructor _ id _) -> id) (concat con)
     -- let con'' = sort con'
     -- checkConstructors con''
@@ -148,13 +146,13 @@ identType (DataConstructor _ _ (TypeAnnotation _ t)) = t
 
 
 checkConstructor :: Show a => Constr' a -> SE () a
-checkConstructor ( DataConstructor a id (TypeAnnotation a' ty)) = checkType ty 
+checkConstructor ( DataConstructor a id (TypeAnnotation a' ty)) = checkType ty
 
 checkType :: Show a => Type' a -> SE () a
-checkType t = case t of 
+checkType t = case t of
   TypeInt a -> return ()
   TypeBool a -> return ()
-  TypeList a ty -> 
+  TypeList a ty ->
       checkType ty
   TypeIdent a id -> do
     adts <- get
@@ -162,10 +160,10 @@ checkType t = case t of
     case adt of
       Nothing -> throwError $ "Unknown type: " ++ show id
       Just (ADT id' tvs ids) -> (do
-              unless (length tvs == 0)
+              unless (null tvs)
                 (throwError $ "Type " ++ show id ++ "requires type variables (at" ++ show a ++ ")")
             )
-  
+
   TypeApp a id tys -> do
       adts <- get
       let adt = Data.Map.lookup id (from_name adts)
