@@ -1,43 +1,83 @@
 
-Standardowy język funkcyjny, wg tabelki. Docelowo będzie na ok 30 pkt.
+
+# Kompilacja 
+
+Skrypt generate.sh generuje od nowa wszystkie pliki (i podmienia Makefile na ten spzred generacji).
+
+Polecenie make buduje plik Atuan/Interpreter.
+
+
+# Język.
+
+Standardowy język funkcyjny, wg tabelki.
 
 Składnia inspirowana składnią Haskella (chociaż przy pattern matchingu i lambdach są trochę inne konstrukcje).
 
-Typy: Int, Bool, funkcyjne, listy. 
-Tworzenie typów algebraicznych jak w w rozszerzeniu GADTs Haskella (jawne podanie typów konstruktorów - przykład w adt.hs).
-W szczególności są one polimorficzne.
+# Typy 
+
+Int, Bool, funkcyjne, listy.
+
+Typy są polimorficzne, z rekonstrukcją.
+Rekonstrukcja oparta jest o https://github.com/mgrabmueller/TransformersStepByStep
+
+(TODO - brakuje przykładów do rekonstrukcji) 
+
+Użytkownik może definiować własne typy algebraiczne,
+składnia jak w rozszerzeniu GADT Haskella.
+Typy argumentów konstruktora muszą się dać odtworzyć z wyniku,
+tzn wszystkie zmienne typowe obecne w parametrach muszą być obecne w wyniku 
+
+Listy są realizowane jako predefiniowany typ algebraiczny o konstruktorach Cons i Empty.
+
+
+## Annotacje typów
+
+Możliwe jest jawne podanie typów (chociaż obecnie są one ignorowane).
+
+(TODO annotacje podane przez użytkownika nie powinny być ignorowane).
+
+Przy kostruktorach ADT typy są konieczne.
+
+
+# Lambdy
 
 Funkcje anonimowe / domknięcia tworzone przez słowo kluczowe lambda.
 
-Pattern matching: dla list po [] | x:xs, po kontruktorach ADT. Dowolne zagłebienie wzorców.
+
+# Pattern matching
+
+Dla list dostępny jest syntax sugar z [] i : 
+
+Poza tym mogą występować konstrukotry ADT i zmienne.
+Zmienna może wystąpić w każdym wzorcu tylko raz.
+
+Literały nie mogą występować we wzorcu.
+
+Zagłębienie wzorców jest dowolne.
+
+(TODO - jeśli starczy czasu można dodać sprawdzanie kompletności pattern matchingu)
 
 
-Możliwe jest jawne podanie typów (chociaż obecnie są one ignorowane).
-Zaimplementowana jest rekonstrukcja typów, oparta o podany na Moodle (https://github.com/mgrabmueller/TransformersStepByStep).
-(To jest na razie raczej prototyp, przedyskutuję go przy prezentowaniu / na najbliższych zajęciach).
+# Budowa programu.
 
-
-
+# Definicje typów
 
 Program w tym języku składa się ciągu definicji typów i nazw globalnych.
 
 Definicje typów mogą występować w dowolnej kolejności.
-Mogą one deklarować (wzajemnie rekurencyjne) typy algebraiczne, poprzez wypisanie ich konstrukotorów, wraz z jawnym podaniem typów.
-(Jest to jedyne miejsce w języku gdzie podanie wszystkiech typów jest konieczne).
-
-Nazwy globalne to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). Nazwy globalne są zawsze wyliczane  tak jakby były funkcjami, nawet jeśli argumentów jest 0. Sprawia to m.in., że program, który nie używa globalnej wartości, której obliczenie powodowałoby błąd, może wykonać się poprawnie (o ile nie wystąpią inne błędy).
-
-Let nie jest rekurencyjny. (Letrec jest).
+Definiują one (wzajemnie rekurencyjne, polimorficzne) typy algebraiczne.
 
 
-Interpreter kompilować należy poleceniem `ghc Atuan/Interpreter.hs`
-(Względem outputu bnfc jest konieczna jedna drobna zmiana w pliku Abs.hs)
+# Definicje funkcji / stałych
+
+Nazwy najwyższego poziomu to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). 
+Nazwy najwyższego poziomu są zawsze wyliczane tak jakby były funkcjami, nawet jeśli argumentów jest 0. 
+
+Oznacza to, że jeśli nikt nie korzysta ze "stałej" najwyższego poziomu, której wyliczenie spowodowałoby np dzielenie przez zero lub nieskończąną pętlę, to błąd ten nie wystąpi.
+
+W języku występuje let, który nie jest rekurencyjny (i jest gorliwy), oraz letrec - rekurencyjny, działa jak opisane wyżej konstrukcje z najwyższego poziomu.
 
 
-GADT są ograniczone: w wyniku muszą pojawić się wszystkie zmienne, które występują w parametrach konstruktora.
-
-
-Pattern Matching nie wspiera literałów.
 
 
 
