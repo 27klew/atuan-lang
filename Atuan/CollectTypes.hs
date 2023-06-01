@@ -91,6 +91,11 @@ collectType (TopDef _ _) = return ()
 collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
   checkTypeName ident
   mapM_ checkTypeVar vars
+  let vars' = map varName vars
+  let v = findDuplicate vars'
+  unless (v == Nothing) 
+    (throwError $ "Duplicate variable " ++ show v ++ "at position " ++ show pos)
+
   constr' <- mapM identToVarConstr constr
   mapM_ (checkDataConstr ident vars) constr'
 
@@ -105,6 +110,9 @@ identConstr (DataConstructor _ i _) = i
 
 identType :: Constr' a -> Type' a
 identType (DataConstructor _ _ (TypeAnnotation _ t)) = t
+
+varName :: TVar' a -> String
+varName (TypeVariable a (Ident s)) = s
 
 checkConstructor :: Show a => Constr' a -> SE () a
 checkConstructor (DataConstructor a id (TypeAnnotation a' ty)) = checkType ty

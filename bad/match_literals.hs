@@ -1,4 +1,4 @@
---  Litterals in pattern matching are not (currently) allowed.
+--  Litterals in pattern matching are not allowed.
 
 
 xs = [1, 2, 3];
