@@ -161,8 +161,7 @@ eval exp = case exp of
 
       VADT s vs ->
         return $ VADT s (vs ++ [x])
-
-      _ -> throwError "Runtime Error: EApp on non-function argument. This should not happen TODO"
+      _ -> throwError "EApp on non-function argument. This should not happen"
 
 
   EAbs pos s exp' -> do
