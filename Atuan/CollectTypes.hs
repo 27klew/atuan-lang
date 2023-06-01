@@ -14,9 +14,15 @@ import Data.List (sort)
 import Data.Maybe (isNothing)
 
 
-data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving (Show, Eq, Ord)
+data ADT a = ADT {
+    name :: Ident,
+    vars :: [TVar' a], constrs :: [Ident]
+  } deriving (Show, Eq, Ord)
 
-data ADTs a = ADTs {from_name :: Map Ident (ADT a) , from_constr :: Map Ident (Constr' a)} deriving (Show, Eq, Ord)
+data ADTs a = ADTs {
+    from_name :: Map Ident (ADT a) ,
+    from_constr :: Map Ident (Constr' a)
+  } deriving (Show, Eq, Ord)
 
 
 type SE a b = (StateT (ADTs b) (ExceptT String Identity)) a
@@ -40,8 +46,7 @@ getType i = do
 
 
 
-emptyADTs = ADTs empty  empty
-
+emptyADTs = ADTs empty empty
 
 
 collect :: Show a => Atuan.Abs.Program' a -> Either String (ADTs a)
@@ -117,7 +122,6 @@ collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
 
     addType ident vars constr'
 
--- TODO builtin List should be first
 
 identConstr :: Constr' a -> Ident
 identConstr (DataConstructor _ i _) = i
@@ -267,7 +271,6 @@ identToVar x = case x of
 
   TypeIdent a id ->
     if isLowerIdent id then
-        -- error "Whhhhooo"
         return $ TypeVar a id
     else
         return $ TypeIdent a id
