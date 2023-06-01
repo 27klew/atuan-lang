@@ -36,18 +36,14 @@ collect :: Show a => Atuan.Abs.Program' a -> Either String (ADTs a)
 collect program = runIdentity (runExceptT (execStateT ( collectProgram program) emptyADTs))
 
 
-
 collectProgram :: Show a => Atuan.Abs.Program' a -> SE () a
 collectProgram (Atuan.Abs.ProgramText ann tops) = do
     let types = filter isType tops
-    let names = map topName types
-    let names' = sort names
 
     collectType (builtInList ann)
     mapM_ collectType types
 
     types' <- get
-
     let con = elems $ from_constr types'
     mapM_ checkConstructor con
 
