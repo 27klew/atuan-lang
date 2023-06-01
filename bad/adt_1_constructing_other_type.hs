@@ -6,6 +6,6 @@ data Tree where
 	;
  
 data TypedTree a where 
-	TypedNode :: a -> (TypedTree a) -> (TypedTree a) -> (Tree a)
+	TypedNode :: a -> (TypedTree a) -> (TypedTree a) -> Tree
 	TypedLeaf :: (Tree a)
 	;
