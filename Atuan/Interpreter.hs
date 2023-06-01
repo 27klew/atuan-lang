@@ -152,28 +152,31 @@ run v p s =
       --     showTree v typed'
 
           let treeExp = translate defs
+          case treeExp of
+            Left str -> putStrLn $ str ++ "\n "
+            Right treeExp -> (do
 
-          putStrLn' $ show treeExp
+              putStrLn' $ show treeExp
 
-          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
-          putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
+              putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
+              putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
 
-          res <- W.testEnv' types treeExp
+              res <- W.testEnv' types treeExp
 
-          case res of
-            Left err  ->  putStrLn $ show err ++ "\n " ++ err ++ "\n"
-            Right ty   ->  ( do
-              putStrLn $  "\nType of main: " ++ show ty
-              let val = Eval.testEval adts treeExp
+              case res of
+                Left err  ->  putStrLn $ show err ++ "\n " ++ err ++ "\n"
+                Right ty   ->  ( do
+                  putStrLn $  "\nType of main: " ++ show ty
+                  let val = Eval.testEval adts treeExp
 
-              (
-                case val of
-                  Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
-                  Right val' -> putStrLn $ "value: " ++ show val'
-                )
+                  (
+                    case val of
+                      Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
+                      Right val' -> putStrLn $ "value: " ++ show val'
+                    )
+                  )
               )
-
       -- let typed = ti  treeExp
 
           putStrLn' "\n\n\nThat's It!"

@@ -13,8 +13,10 @@ import Atuan.CollectTypes (ADTs(..))
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
 
+type Expected a = Either String a
+
 class Translatable a where
-    translate :: a -> Exp Pos
+    translate :: a -> Expected (Exp Pos)
 
 
 type Pos = BNFC'Position
@@ -24,37 +26,39 @@ iname (A.OptionallyTypedIdentifier a (A.TypedIdentifier a2 (A.Ident n) _)) = n
 iname (A.SkippedTypeIdentifier a (A.Ident n)) = n
 
 
-translateDef :: A.Def' Pos -> (Exp Pos, String)
-translateDef (A.DefinitionT a (A.Ident i) ids t exp) =
-    let exp' = translate exp in
-    let ids' = map iname ids in
+translateDef :: A.Def' Pos -> Expected (Exp Pos, String)
+translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
+    exp' <- translate exp
+    let ids' = map iname ids
     case ids' of
-        [] -> (exp', i)
-        iss -> (app, i)
+        [] -> return (exp', i)
+        iss -> return (app, i)
             where app = foldr (EAbs a) exp' iss
 
 instance Translatable (A.Program' Pos) where
     translate (A.ProgramText a []) =
-        EVar a "main"
+        return $ EVar a "main"
     translate (A.ProgramText a1 (x:xs)) = case x of
-      A.TopDef a def ->
-        let (exp', name) = translateDef def in
-        ELetRec  a1 name exp' (translate (A.ProgramText a1 xs))
+      A.TopDef a def -> (do
+        (exp', name) <- translateDef def
+        inner <- translate (A.ProgramText a1 xs)
+        return $ ELetRec  a1 name exp' inner
+        )
       A.TopType a td -> error "Type definitions should not be translated."
 
 instance Translatable A.BoolLiteral where
     translate (A.BoolLiteral b) =
-        ELit Nothing (LBool Nothing b') where
+        return $ ELit Nothing (LBool Nothing b') where
             b' = b == "True"
 
 instance Translatable (A.Lambda' Pos) where
-  translate :: A.Lambda' Pos -> Exp Pos
+  translate :: A.Lambda' Pos -> Expected (Exp Pos)
   translate (A.AnonymousFunction a ids t exp) = do
-    let (exp', _) = translateDef (A.DefinitionT a (A.Ident "__anonymous__") ids t exp) in
-      exp'
+    (exp', _) <- translateDef (A.DefinitionT a (A.Ident "__anonymous__") ids t exp)
+    return exp'
 
 instance Translatable (A.Val' Pos) where
-  translate :: A.Val' Pos -> Exp Pos
+  translate :: A.Val' Pos -> Expected (Exp Pos)
   translate (A.ValList a expr) = translate expr
 
 
@@ -86,79 +90,125 @@ instance TranslatableOp (A.AddOp' a) where
 
 
 instance Translatable (A.Expr' Pos) where
-  translate :: A.Expr' Pos -> Exp Pos
-  translate (A.EVar a (A.Ident i)) = EVar a i
-  translate (A.ELitInt a n) = ELit a (LInt a n)
+  translate :: A.Expr' Pos -> Expected (Exp Pos)
+  translate (A.EVar a (A.Ident i)) = return $ EVar a i
+  translate (A.ELitInt a n) = return $ ELit a (LInt a n)
   translate (A.ELitBool a b) = translate b
   translate (A.ELambda a l) = translate l
-  translate (A.ELitList a vals) =
-         ELit a (LList a (map translate vals))
+  translate (A.ELitList a vals) = do
+        vals' <- mapM translate vals
+        return $ ELit a (LList a vals')
 
   translate (A.EApp a e1 []) = translate e1
 
-  translate (A.EApp a e1 xs) =
-        let e1' = translate e1
+  translate (A.EApp a e1 xs) = do
+        e1' <- translate e1
             -- x' = translate x
-            xs' = map translate xs in
-        foldl (EApp a) e1' xs'
+        xs' <- mapM translate xs
+        return $ foldl (EApp a) e1' xs'
 
-  translate (A.Neg a exp) = EUnOp a OpNeg (translate exp)
-  translate (A.Not a exp) = EUnOp a OpNot (translate exp)
-  translate (A.EMul a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
-  translate (A.EAdd a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
-  translate (A.ERel a exp1 op exp2) = EBinOp a (translate exp1) (translateOp op) (translate exp2)
-  translate (A.EAnd a exp1 exp2) = EBinOp a (translate exp1) OpAnd (translate exp2)
-  translate (A.EOr a exp1 exp2) = EBinOp a (translate exp1) OpOr (translate exp2)
+  translate (A.Neg a exp) = do
+       exp' <- translate exp
+       return $ EUnOp a OpNeg exp'
 
-  translate (A.EIf a exp exp1 exp2) = EIf a (translate exp) (translate exp1) (translate exp2)
-  translate (A.ELet a def exp) =
-    let (exp', name) = translateDef def in
-        ELet a name exp' (translate exp)
-  translate (A.ELetRec a def exp) = 
-      let (exp', name) = translateDef def in
-        ELetRec a name exp' (translate exp)
+  translate (A.Not a exp) = do
+       exp' <- translate exp
+       return $ EUnOp a OpNot exp'
 
-  translate (A.EMatch a (A.Ident i) pbs) = EMatch a i (map translateBranch pbs)
+
+  translate (A.EMul a exp1 op exp2) = do
+      exp1' <- translate exp1
+      exp2' <- translate exp2
+      let op' = translateOp op
+      return $ EBinOp a exp1' op' exp2'
+
+
+  translate (A.EAdd a exp1 op exp2) = do
+      exp1' <- translate exp1
+      exp2' <- translate exp2
+      let op' = translateOp op
+      return $ EBinOp a  exp1' op' exp2'
+  translate (A.ERel a exp1 op exp2) = do
+    exp1' <- translate exp1
+    exp2' <- translate exp2
+    let op' = translateOp op
+    return $ EBinOp a  exp1' op' exp2'
+  translate (A.EAnd a exp1 exp2) = do
+    exp1' <- translate exp1
+    exp2' <- translate exp2
+    return $ EBinOp a exp1' OpAnd exp2'
+  translate (A.EOr a exp1 exp2) = do
+    exp1' <- translate exp1
+    exp2' <- translate exp2
+    return $ EBinOp a exp1' OpOr exp2'
+
+  translate (A.EIf a exp exp1 exp2) = do
+    exp' <- translate exp
+    exp1' <- translate exp1
+    exp2' <- translate exp2
+    return $ EIf a exp' exp1' exp2'
+  translate (A.ELet a def exp) = do
+    (def', name) <- translateDef def
+    exp' <- translate exp
+    return $ ELet a name def' exp'
+  translate (A.ELetRec a def exp) = do
+      (def', name) <- translateDef def
+      exp' <- translate exp
+      return $ ELetRec a name def' exp'
+
+  translate (A.EMatch a (A.Ident i) pbs) = do
+    branches <- mapM translateBranch pbs
+    return $ EMatch a i branches
   translate (A.ConsLit a x xs) =
      translate (A.EApp a (A.EVar a (A.Ident "Cons")) [x, xs])
 
 
-translateBranch :: A.PatternBranch' Pos -> PatternBranch Pos
-translateBranch br = case br of 
-  BranchPattern a pat ex -> 
-     let pat' = translatePattern pat in
-     let ex' = translate ex in
-      PatternBranch pat' ex' 
+translateBranch :: A.PatternBranch' Pos -> Expected (PatternBranch Pos)
+translateBranch (BranchPattern a pat ex) = do
+    pat' <- translatePattern pat
+    ex' <- translate ex
+    return $ PatternBranch pat' ex'
 
 
-translatePatternField :: A.Field' Pos -> Pattern Pos
+translatePatternField :: A.Field' Pos -> Expected (Pattern Pos)
 translatePatternField field = case field of
   ConstrField a pat -> translatePattern pat
-  ConstrFieldIdent a (A.Ident i) -> PatternIdent a i
+  ConstrFieldIdent a (A.Ident i) -> return $ PatternIdent a i
 
 
-isStringLower :: String -> Bool 
-isStringLower s = 
+isStringLower :: String -> Bool
+isStringLower s =
   let c = head s in
     isLower c
 
 
-translatePattern  :: A.Pattern' Pos -> Pattern Pos
-translatePattern pat = case pat of 
-  A.PatternLiteral a lit -> error "Literal Patterns are not supported yet."
-  A.PatternConstr a (A.Ident i) fis -> case (isStringLower i) of
-    False -> PatternConstr a i  (map translatePatternField fis)
-    True -> if null fis then PatternIdent a i else error "lowercase name should be an ident, not constr"
-
-
+translatePattern  :: A.Pattern' Pos -> Expected (Pattern Pos)
+translatePattern pat = case pat of
+  A.PatternLiteral a lit -> Left "Literal Patterns are not supported yet."
+  A.PatternConstr a (A.Ident i) fis ->
+    if isStringLower i 
+      then 
+        (
+          if null fis 
+            then 
+              Right (PatternIdent a i) 
+            else 
+              Left "lowercase name should be an ident, not constr") 
+      else (do
+        fis' <- mapM translatePatternField fis
+        return $ PatternConstr a i fis'
+      )
 
 
     -- 
-  A.PatternList a lp -> 
-      case lp of 
-        A.PatternEmptyList a -> PatternEmptyList a
-        A.PatternConsList a p1 p2 -> PatternConsList a (translatePattern p1) (translatePattern p2) 
-
+  A.PatternList a lp ->
+      case lp of
+        A.PatternEmptyList a -> return $ PatternEmptyList a
+        A.PatternConsList a p1 p2 -> (do
+          p1' <- translatePattern p1
+          p2' <- translatePattern p2
+          return $ PatternConsList a p1' p2'
+          )
 
 
 test_1 = (A.EApp () (A.EVar () (A.Ident "f")) [(A.EVar () (A.Ident "x"))])

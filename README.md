@@ -36,6 +36,11 @@ Interpreter kompilulować należy poleceniem `ghc Atuan/Interpreter.hs`
 
 
 
+GADT są ograniczone: w wyniku muszą pojawić się wszystkie zmienne, które występują w parametrach konstruktora.
+
+
+Pattern Matching nie wspiera literałów.
+
 
 
 
