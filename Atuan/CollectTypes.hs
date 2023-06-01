@@ -68,31 +68,13 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
     let names = map topName types
     let names' = sort names
 
-
-    let x = findDuplicate names'
-    unless (isNothing x)
-      (throwError $ "Duplicate typename " ++ show x) -- TODO locations
-
-
-    let y = filter (not . isUpperIdent) names'
-    unless (null x)
-      (throwError $ "Typename should start with capital letters:" ++ show x)
-
-
     collectType (builtInList ann)
     mapM_ collectType types
 
     types' <- get
 
-
-
-    -- TODO
     let con = elems $ from_constr types'
     mapM_ checkConstructor con
-
-    -- let con' = map (\(DataConstructor _ id _) -> id) (concat con)
-    -- let con'' = sort con'
-    -- checkConstructors con''
 
 
 builtInList dummy =
