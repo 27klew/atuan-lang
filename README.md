@@ -27,13 +27,11 @@ Mogą one deklarować (wzajemnie rekurencyjne) typy algebraiczne, poprzez wypisa
 
 Nazwy globalne to rekurencyjne definicje, które mogą korzystać z nazw zadeklarowanych wyżej (o ile nie zostały one przez coś przesłonięte.). Nazwy globalne są zawsze wyliczane  tak jakby były funkcjami, nawet jeśli argumentów jest 0. Sprawia to m.in., że program, który nie używa globalnej wartości, której obliczenie powodowałoby błąd, może wykonać się poprawnie (o ile nie wystąpią inne błędy).
 
-Let nie jest rekurencyjny.
+Let nie jest rekurencyjny. (Letrec jest).
 
 
-Interpreter kompilulować należy poleceniem `ghc Atuan/Interpreter.hs`
+Interpreter kompilować należy poleceniem `ghc Atuan/Interpreter.hs`
 (Względem outputu bnfc jest konieczna jedna drobna zmiana w pliku Abs.hs)
-
-
 
 
 GADT są ograniczone: w wyniku muszą pojawić się wszystkie zmienne, które występują w parametrach konstruktora.
