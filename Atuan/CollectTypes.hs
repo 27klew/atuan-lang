@@ -12,32 +12,14 @@ import GHC.Conc (TVar(TVar))
 import qualified Data.Set as Set (fromList)
 import Data.List (sort)
 import Data.Maybe (isNothing)
--- import Prelude (Maybe(..), Eq, Either(..), String, Show, Bool, mapM_, (==), )
-
-
-
--- TODO something other here
--- data Type = Int | Bool | Func Type Type/
-
-
--- type TypeEnv a = Map Ident ([TVar' a], [Constr' a])
 
 
 data ADT a = ADT {name :: Ident, vars :: [TVar' a], constrs :: [Ident]} deriving (Show, Eq, Ord)
-
 
 data ADTs a = ADTs {from_name :: Map Ident (ADT a) , from_constr :: Map Ident (Constr' a)} deriving (Show, Eq, Ord)
 
 
 type SE a b = (StateT (ADTs b) (ExceptT String Identity)) a
-
--- type RE a b = (ReaderT (ADTs b) (ExceptT String Identity)) a
-
-
-
--- note :: e -> Maybe a -> Either e a
--- note e Nothing  = Left e
--- note _ (Just a) = Right a
 
 
 note :: e -> Maybe a -> Except e a
@@ -98,7 +80,6 @@ collectProgram (Atuan.Abs.ProgramText ann tops) = do
     types' <- get
 
 
-    -- mapM_ checkType 
 
     -- TODO
     let con = elems $ from_constr types'
@@ -207,56 +188,11 @@ addType  name vars constr = do
 
 
 
-
-
-
-
--- isConstr ::  Ident -> RE Ident b
--- isConstr i = do
---   env <- get
---   -- let l = toList env
---   -- let li = map (\(x, y) -> (x, identConstr (snd y))) l
---   -- let l' = filter (\(_, x) -> elem i x) li
-
---   -- when (null l')
---   --   (throwError $ "No such constructor " ++ show i)
-
-
---   throwError "aaa"
-
-
-
-
-
-
-
 findDuplicate :: Eq a => [a] -> Maybe a
 findDuplicate [] = Nothing
 findDuplicate [_] = Nothing
 findDuplicate (x:y:xs) =
   if x == y then Just x else findDuplicate (y:xs)
-
-
-
-checkConstructors :: [Ident] -> SE () a
-checkConstructors con = do
-  let dup = findDuplicate con
-  unless (isNothing dup)
-   ( throwError $ "Data constructors should be unique: " ++ show dup )
-
-
--- collectProgram :: Show a => Atuan.Abs.Program' a -> RE () a
--- collectProgram (Atuan.Abs.ProgramText ann tops) = do
---     mapM_ collectType tops
---     types <- get
-
---     -- TODO
---     -- let con = map snd (elems types)
---     -- let con' = map (\(DataConstructor _ id _) -> id) (concat con)
---     -- let con'' = sort con'
---     -- checkConstructors con''
-
---     return ()
 
 
 isUpperIdent :: Ident -> Bool
