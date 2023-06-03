@@ -1,4 +1,4 @@
--- Based on: https://github.com/mgrabmueller/TransformersStepByStep
+-- Based on: https://github.com/mgrabmueller/AlgorithmW
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Atuan.AlgorithmW where
@@ -18,6 +18,7 @@ import qualified Text.PrettyPrint as PP
 import Debug.Trace
 import Atuan.Abs (BNFC'Position)
 import Control.Monad.Identity (Identity (runIdentity))
+import GHC.Debug (debugErrLn)
 
 
 data Exp a =  EVar a String
@@ -352,23 +353,76 @@ ti (EUnOp pos op e) = do
 
 
 
-ti (EMatch pos i brs) = do
+-- ti (EMatch pos i brs) = do
+--     (s, t) <- ti (EVar pos i)
+--     rs <- mapM (tiBranch t) brs
+--     tv <- newTyVar "a"
+--     (s', t') <- foldM unifTypes (nullSubst, tv) rs
+
+
+--     trace ("tiMatch\nrs: " ++ show rs ++ "\nt: " ++ show t ++ "\nt' " ++ show t' ++"\ns' " ++ show s' ++ "\n\n")
+--         return (s' `composeSubst` s, apply s' t')
+
+ti (EMatch pos i bs) = do
     (s, t) <- ti (EVar pos i)
-    rs <- mapM (tiBranch t) brs
+    tiMatch bs s t
+
+
+tiMatch :: [PatternBranch a] -> Subst -> Type -> TI (Subst, Type)
+tiMatch [] s t = do
     tv <- newTyVar "a"
-    (s', t') <- foldM unifTypes (nullSubst, tv) rs
-    -- error $ "rs: " ++ show rs ++ "\nt: " ++ show t ++ "\nt' " ++ show t' ++"\ns' " ++ show s'
-    return (s' `composeSubst` s, apply s' t')
+    return (s, tv)
+
+tiMatch (b:bs) s t = do
+    (sb, tb) <- trace ("\ntiMatch \nbs lenght: " ++ show (length bs) 
+                        ++ " \nt: " ++show t ++ "\ns: " ++ show s
+                        ++ "\n\n"
+                        ) (tiBranch t b) 
+
+    let s' = trace ("\n\n" ++ "\nsb: " ++ show sb
+                        ++ "\ntb: " ++ show tb ++ "\n") 
+                (sb `composeSubst` s)
+
+    (sm, tm) <- tiMatch bs s' (apply s' t)
+
+    trace (
+                -- "\ntiMatch "
+                -- ++ "\nbs lenght: " ++ show (length bs) 
+                -- ++ " \nt: " ++show t ++ "\ns: " ++ show s ++ "\nsb: " ++ show sb
+                ""
+                -- ++ "\ntb: " ++ show tb ++ "\ns': "++ show s' 
+                ++ "\nsm: " ++ show sm
+                ++ "\ntm: " ++ show tm  ++ "\n"
+                ) 
+        (do
+            smgu <- mgu tm tb
+            return (smgu `composeSubst` sm `composeSubst` s', apply smgu tb)
+        )
+
 
 nullTypeEnv = TypeEnv Map.empty
 
 
 unifTypes :: (Subst, Type) -> (Subst, Type) -> TI (Subst, Type)
 unifTypes (s1, t1) (s2, t2) = do
-    let s3 = s1 `composeSubst` s2
-    s3' <- mgu (apply s3 t1) (apply s3 t2)
+    sm <- mgu t1 t2
+    let s1' = sm `composeSubst` s1
+    let s2' = sm `composeSubst` s2 
 
-    return (s3' `composeSubst` s3, apply s3' t1)
+    let s3 = s1' `composeSubst` s2' 
+    -- s3' <- mgu (apply s3 t1) (apply s3 t2)
+ 
+    -- let s = s3' `composeSubst` s3
+
+    -- trace ("Unif types:" ++ "\ns3' " ++ show s3' ++ "\nt1: "++show t1 ++ "\nt2" ++ show t2 ++ "\n\n")
+    --     return (s, apply s t1)
+
+
+
+    trace ("\n\nUnif types:\n s1: " ++ show s1 ++ "\nst1: " ++ show t1 ++ "\ns2: " ++show s2 ++ "\nt2" ++ show t2
+            ++ "\nsm: " ++ show sm ++ "\ns1': " ++ show s1' ++ "\ns2': " ++ show s2' ++ "\ns3: " ++ show s3 ++"\n\n"
+            )
+        return (s3, apply s3 t1)
 
 
 intersectEnv :: TypeEnv -> TypeEnv -> TypeEnv
