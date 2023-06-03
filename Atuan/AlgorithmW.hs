@@ -356,8 +356,9 @@ ti (EMatch pos i brs) = do
     (s, t) <- ti (EVar pos i)
     rs <- mapM (tiBranch t) brs
     tv <- newTyVar "a"
-    foldM unifTypes (nullSubst, tv) rs
-
+    (s', t') <- foldM unifTypes (nullSubst, tv) rs
+    -- error $ "rs: " ++ show rs ++ "\nt: " ++ show t ++ "\nt' " ++ show t' ++"\ns' " ++ show s'
+    return (s' `composeSubst` s, apply s' t')
 
 nullTypeEnv = TypeEnv Map.empty
 
@@ -367,7 +368,7 @@ unifTypes (s1, t1) (s2, t2) = do
     let s3 = s1 `composeSubst` s2
     s3' <- mgu (apply s3 t1) (apply s3 t2)
 
-    return (s3', apply s3' t1)
+    return (s3' `composeSubst` s3, apply s3' t1)
 
 
 intersectEnv :: TypeEnv -> TypeEnv -> TypeEnv
