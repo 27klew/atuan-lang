@@ -18,7 +18,7 @@ import Prelude
   , IO, (>>), (>>=), mapM_, putStrLn
   , FilePath
   , getContents, readFile, print
-  , map, Maybe (..), Bool (..), not
+  , map, Maybe (..), Bool (..), not, (==), undefined, (||), error
   )
 import System.Environment ( getArgs )
 import System.Exit        ( exitFailure )
@@ -35,7 +35,8 @@ import Data.Map (elems, toList, keys, Map, lookup, filter)
 
 import Atuan.Translate (Translatable (translate), translateConstrs)
 import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv')
-import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval)
+import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval, Val)
+import Atuan.Evaluate (Val'(..))
 
 
 debug = False
@@ -110,6 +111,21 @@ isType t = case t of
   TopType a td -> True
 
 
+showList :: Eval.Val -> String
+showList (VADT _ []) = "]"
+showList (VADT _ [h, t]) = 
+      show' h ++ ", " ++ showList t 
+showList v = error $ "Incorrect usage of printList" ++ show v
+
+
+
+show' :: Eval.Val -> String
+show' v = case v of
+  VADT s vas -> if (s == "Cons") || (s == "Empty") then  "[" ++ showList v else show v
+  VInt i -> show i
+  VBool b -> show b
+  v -> show v
+
 run ::  Verbosity -> ParseFun Program -> String -> IO ()
 run v p s =
   case p ts of
@@ -172,7 +188,7 @@ run v p s =
                   (
                     case val of
                       Left str -> putStrLn $ "Something went wrong in the calcutation: " ++ str
-                      Right val' -> putStrLn $ "value: " ++ show val'
+                      Right val' -> putStrLn $ "value: " ++ show' val'
                     )
                   )
               )
