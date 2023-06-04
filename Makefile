@@ -27,7 +27,7 @@ Atuan/Abs.hs Atuan/Lex.x Atuan/Par.y Atuan/Print.hs Atuan/Test.hs : Atuan.cf
 %.hs : %.x
 	${ALEX} ${ALEX_OPTS} $<
 
-Atuan/Interpreter : Atuan/Abs.hs Atuan/Lex.hs Atuan/Par.hs Atuan/Print.hs Atuan/Test.hs Atuan/CollectTypes.hs Atuan/AlgorithmW.hs Atuan/Translate.hs
+Atuan/Interpreter : Atuan/Abs.hs Atuan/Lex.hs Atuan/Par.hs Atuan/Print.hs Atuan/Test.hs Atuan/CollectTypes.hs Atuan/AlgorithmW.hs Atuan/Translate.hs Atuan/Interpreter.hs
 	${GHC} ${GHC_OPTS} $@
 
 # Rules for cleaning generated files.
