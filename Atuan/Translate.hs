@@ -9,7 +9,7 @@ import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulO
 import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
 import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..))
 
-import Atuan.CollectTypes (ADTs(..))
+import Atuan.CollectTypes (ADTs(..), identToVar)
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
 
@@ -29,7 +29,8 @@ iname (A.SkippedTypeIdentifier a (A.Ident n)) = n
 
 
 makeType' :: Type' a -> Type
-makeType' ty = case ty of
+makeType' ty = 
+  case  ty of
   TypeInt a -> TInt
   TypeBool a -> TBool
   TypeList a ty' -> ADT "List" [makeType' ty']
@@ -62,12 +63,12 @@ makeFunType [] = error "Incorrect usage of makeFunType"
 makeFunType [t] = t
 makeFunType (t:ts) = do
   t' <- t
-  ts' <- makeFunType ts 
+  ts' <- makeFunType ts
   return $ TFun t' ts'
 
 
 setTypeInLabel :: Label -> Maybe Type -> Label
-setTypeInLabel (p, _) t = (p, t) 
+setTypeInLabel (p, _) t = (p, t)
 
 
 setTypeLabel :: Exp Label -> Maybe Type -> Exp Label
@@ -78,13 +79,16 @@ setTypeLabel exp t = case exp of
   EAbs x0 s exp' -> EAbs (setTypeInLabel x0 t) s exp'
   ELet x0 s exp' exp2 -> ELet (setTypeInLabel x0 t) s exp' exp2
   ELetRec x0 s exp' exp2 -> ELetRec (setTypeInLabel x0 t) s exp' exp2
-  EIf x0 exp' exp2 exp3 -> EIf (setTypeInLabel x0 t) exp' exp2 exp3 
+  EIf x0 exp' exp2 exp3 -> EIf (setTypeInLabel x0 t) exp' exp2 exp3
   EBinOp x0 exp' ob exp2 -> EBinOp (setTypeInLabel x0 t) exp' ob exp2
   EUnOp x0 ou exp' -> EUnOp (setTypeInLabel x0 t) ou exp'
   EMatch x0 s pbs -> EMatch (setTypeInLabel x0 t) s pbs
 
 
--- TODO definitions should not ignore type annotation
+-- TODO: w tym momencie tłumaczenie zmiennych zmiennych 
+-- jakoś tak po porostu stwierdza że każda zmienna to ADT 
+-- zapewne dlatego że są parsowane jako Ident
+
 translateDef :: A.Def' Pos -> Expected (Exp Label, String)
 translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     exp' <- translate exp
@@ -93,7 +97,7 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
 
     let tr = makeLabel' t
 
-    let ty = makeFunType (tys ++ [tr]) 
+    let ty = makeFunType (tys ++ [tr])
 
 
     if map itname ids'' /= ids' then
@@ -103,7 +107,7 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
           iss -> return (setTypeLabel app ty, i)
             where app = foldr (EAbs (a, Nothing)) exp' iss
 
-                    
+
 
 instance Translatable (A.Program' Pos) where
     translate (A.ProgramText a []) =
@@ -347,12 +351,12 @@ changeLiteral f l = case l of
 changePattern :: (a -> b) -> Pattern a -> Pattern b
 changePattern f pat = case pat of
   PatternEmptyList a -> PatternEmptyList (f a)
-  PatternConsList a pat' pat_a -> PatternConsList (f a) (changePattern f pat') (changePattern f pat_a) 
+  PatternConsList a pat' pat_a -> PatternConsList (f a) (changePattern f pat') (changePattern f pat_a)
   PatternConstr a s pats -> PatternConstr (f a) s (map (changePattern f) pats)
   PatternIdent a s -> PatternIdent (f a) s
 
 changePatternBranch :: (a -> b) -> PatternBranch a -> PatternBranch b
-changePatternBranch f (PatternBranch pat exp) = 
+changePatternBranch f (PatternBranch pat exp) =
     PatternBranch (changePattern f pat) (changeLabel f exp)
 
 changeLabel :: (a -> b) ->  Exp a -> Exp b

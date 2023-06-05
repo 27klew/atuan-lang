@@ -287,6 +287,11 @@ instantiateAnn ot = case ot of
     )
 
 
+mguAnn :: Maybe Type -> Type -> TI Subst
+mguAnn Nothing _ = return nullSubst
+mguAnn (Just t1) t2 = mgu t1 t2
+
+
 ti  :: Exp Label -> TI (Subst, Type)
 ti (EVar pos n) = do
     env <- ask
@@ -302,9 +307,25 @@ ti (EAbs (pos, t) n e) = do
             env'' = TypeEnv (env' `Map.union` Map.singleton n (Scheme [] tv))
         (s1, t1) <- local (const env'') (ti e)
         let abs_t = TFun (apply s1 tv) t1
+        
+        -- let t' = t
         t' <- instantiateAnn t
 
-        return $ trace ("\n\n User annotation: " ++ show t' ++ "\nActual type: " ++ show abs_t ++ "\n") (s1, abs_t)
+        s'' <- mguAnn t' abs_t
+        
+        let s' = composeSubst s'' s1
+
+        let t'' = apply s' t'
+
+
+        return $ trace (
+            "t: " ++ show t ++
+            "\n\n User annotation: " ++ show t' 
+            ++ "\nActual type: " ++ show abs_t ++ "\nafter subst: " 
+            ++ show t'' ++ "\nsubst: "++ show s' ++ "\n"
+            ) 
+            (s', apply s' abs_t)
+
 ti exp@(EApp pos e1 e2) = do
         tv <- newTyVar "a"
         (s1, t1) <- ti e1

@@ -1,4 +1,4 @@
-module Atuan.CollectTypes (collect, ADTs (..), isType, ADT (..)) where
+module Atuan.CollectTypes (collect, ADTs (..), isType, ADT (..), identToVar) where
 
 import Atuan.Abs (Constr' (..), Ident (..), Program' (..), TVar, TVar' (..), Top' (..), Type' (TypeApp, TypeBool, TypeFunc, TypeIdent, TypeInt, TypeList, TypeVar), TypeAnnot' (TypeAnnotation), TypeDef' (..))
 import Control.Monad.Except (Except, ExceptT, MonadError (throwError), runExceptT, unless, when)
@@ -256,7 +256,7 @@ checkDataConstr id vars (DataConstructor pos ident (TypeAnnotation _ ty)) = do
           )
 
 
-
+--  TODO użyć tego żeby rozpoznać gdzie w annotacjach są zmienne
 identToVar :: Show a => Type' a -> SE (Type' a) a
 identToVar x = case x of
   TypeInt a -> return $ TypeInt a
