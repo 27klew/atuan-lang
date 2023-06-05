@@ -41,7 +41,7 @@ type EM a = ReaderT Env (StateT State (Expected Identity)) a
 -- constrToName :: Constr' a -> String
 -- constrToName con = case con of { DataConstructor a (Atuan.Abs.Ident id) ta -> id}
 
-setupEnv :: ADTs Atuan.Abs.BNFC'Position -> (Env, State)
+setupEnv :: ADTs Pos -> (Env, State)
 setupEnv adts =
     let constr = from_constr adts in
         let cs = Data.Map.toList constr
@@ -54,7 +54,7 @@ f (env, (mem, loc, adts)) name =
     (insert name loc env, (insert loc (VADT name []) mem, loc+1, adts))
 
 
-testEval :: ADTs  Atuan.Abs.BNFC'Position -> Exp Pos -> Either String (Val)
+testEval :: ADTs Pos -> Exp Pos -> Either String (Val)
 testEval adts exp =
     let x = do
         exp' <- eval exp :: EM (Val)
