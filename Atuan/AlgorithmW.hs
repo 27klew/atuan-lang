@@ -21,6 +21,10 @@ import Control.Monad.Identity (Identity (runIdentity))
 import GHC.Debug (debugErrLn)
 
 
+type Pos = BNFC'Position
+
+type Label = (Pos, Maybe Type)
+
 data Exp a =  EVar a String
              |  ELit a (Lit a)
              |  EApp a (Exp a) (Exp a)
@@ -245,7 +249,7 @@ varBind u t  | t == TVar u           =  return nullSubst
 
 
 
-tiLit :: Lit a -> TI (Subst, Type)
+tiLit :: Lit Label -> TI (Subst, Type)
 tiLit (LInt _ _)   =  return (nullSubst, TInt)
 tiLit (LBool _ _)  =  return (nullSubst, TBool)
 tiLit (LList _ []) =  do
@@ -264,7 +268,7 @@ tiLit (LList pos (x:xs)) = do
 
 
 
-ti  :: Exp a -> TI (Subst, Type)
+ti  :: Exp Label -> TI (Subst, Type)
 ti (EVar pos n) = do
     env <- ask
     case Map.lookup n (getEnv env) of
@@ -368,7 +372,7 @@ ti (EMatch pos i bs) = do
     tiMatch bs s t
 
 
-tiMatch :: [PatternBranch a] -> Subst -> Type -> TI (Subst, Type)
+tiMatch :: [PatternBranch Label] -> Subst -> Type -> TI (Subst, Type)
 tiMatch [] s t = do
     tv <- newTyVar "a"
     return (s, tv)
@@ -448,7 +452,7 @@ isNullEnv (TypeEnv e) = null e
 
 
 
-tiPattern :: Pattern a ->  TI (Subst, Type, TypeEnv)
+tiPattern :: Pattern Label ->  TI (Subst, Type, TypeEnv)
 tiPattern pat = case pat of
   PatternEmptyList pos -> do
         tv <- newTyVar "a"
@@ -527,7 +531,7 @@ unionEnvDisjoint env1 env2 = do
 
 emptyTypeEnv = TypeEnv Map.empty
 
-tiBranch :: Type -> PatternBranch a -> TI (Subst, Type)
+tiBranch :: Type -> PatternBranch Label -> TI (Subst, Type)
 tiBranch tvar (PatternBranch pat exp)  = do
     (s, t, tenv) <- tiPattern pat
 
@@ -551,15 +555,15 @@ tiBranch tvar (PatternBranch pat exp)  = do
 
 
 
-typeInference :: Map.Map String Scheme -> Exp a -> TI Type
+typeInference :: Map.Map String Scheme -> Exp Label -> TI Type
 typeInference env e = do  
         (s, t) <- local (const $ TypeEnv env) (ti e)
         return (apply s t)
 
 
 
-p_ :: BNFC'Position
-p_ = Just (1, 1)
+p_ :: Label
+p_ = (Just (1, 1), Nothing)
 
 e0  =  ELet p_ "id" (EAbs p_ "x" (EVar p_  "x"))
         (EVar p_ "id")
@@ -704,14 +708,14 @@ e19 = ELetRec p_ "iter"
     )
 
 
-test' :: Exp a -> Either String Type
+test' :: Exp Label -> Either String Type
 test' e =
     let (res, _) = runTI (typeInference Map.empty e) in
     res
 
 
 
-test :: Exp a -> IO ()
+test :: Exp Label -> IO ()
 test e =
     let  (res, _) = runTI (typeInference Map.empty e) in
         case res of
@@ -734,7 +738,7 @@ unionEnv :: TypeEnv -> TypeEnv -> TypeEnv
 unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2)
 
 
-testEnv :: TypeEnv -> Exp a -> IO ()
+testEnv :: TypeEnv -> Exp Label -> IO ()
 testEnv env e =
     let TypeEnv env' = unionEnv defaultEnv env in
     let  (res, _) = runTI (typeInference env' e) in
@@ -742,7 +746,7 @@ testEnv env e =
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
 
-testEnv' :: TypeEnv -> Exp a -> IO (Either String Type)
+testEnv' :: TypeEnv -> Exp Label -> IO (Either String Type)
 testEnv' env e =
     let TypeEnv env' = unionEnv defaultEnv env in
     let  (res, _) = runTI (typeInference env' e) in

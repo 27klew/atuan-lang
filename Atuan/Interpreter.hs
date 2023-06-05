@@ -33,7 +33,7 @@ import Atuan.CollectTypes ( collect , ADTs (ADTs, from_name, from_constr), ADT (
 import Data.List ( (++), map, concat, unlines, intercalate, filter )
 import Data.Map (elems, toList, keys, Map, lookup, filter)
 
-import Atuan.Translate (Translatable (translate), translateConstrs)
+import Atuan.Translate (Translatable (translate), translateConstrs, changeLabel)
 import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv')
 import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval, Val)
 import Atuan.Evaluate (Val'(..))
@@ -200,36 +200,6 @@ run v p s =
   ts = myLexer s
   showPosToken ((l,c),t) = concat [ show l, ":", show c, "\t", show t ]
 
-
-changeLiteral :: (a -> b) -> Lit a -> Lit b
-changeLiteral f l = case l of
-  LInt a n -> LInt (f a) n
-  LBool a b -> LBool (f a) b
-  LList a exps -> LList (f a) (map (changeLabel f) exps)
-
-changePattern :: (a -> b) -> Pattern a -> Pattern b
-changePattern f pat = case pat of
-  PatternEmptyList a -> PatternEmptyList (f a)
-  PatternConsList a pat' pat_a -> PatternConsList (f a) (changePattern f pat') (changePattern f pat_a) 
-  PatternConstr a s pats -> PatternConstr (f a) s (map (changePattern f) pats)
-  PatternIdent a s -> PatternIdent (f a) s
-
-changePatternBranch :: (a -> b) -> PatternBranch a -> PatternBranch b
-changePatternBranch f (PatternBranch pat exp) = 
-    PatternBranch (changePattern f pat) (changeLabel f exp)
-
-changeLabel :: (a -> b) ->  Exp a -> Exp b
-changeLabel f exp = case exp of
-  EVar a s -> EVar (f a) s
-  ELit a lit -> ELit (f a) (changeLiteral f lit)
-  EApp a exp' exp_a -> EApp (f a) (changeLabel f exp') (changeLabel f exp_a)
-  EAbs a s exp' -> EAbs (f a) s (changeLabel f exp')
-  ELet a s exp' exp_a -> ELet (f a) s (changeLabel f exp') (changeLabel f exp_a)
-  ELetRec a s exp' exp_a -> ELetRec (f a) s (changeLabel f exp') (changeLabel f exp_a)
-  EIf a exp' exp_a exp'' -> EIf (f a) (changeLabel f exp') (changeLabel f exp_a) (changeLabel f exp'')
-  EBinOp a exp' ob exp_a -> EBinOp (f a) (changeLabel f exp') ob (changeLabel f exp_a)
-  EUnOp a ou exp' -> EUnOp (f a) ou (changeLabel f exp')
-  EMatch a s pbs -> EMatch (f a) s (map (changePatternBranch f) pbs)
 
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()

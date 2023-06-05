@@ -4,14 +4,15 @@
 
 module Atuan.Translate where
 
-import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..))
+import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..), Label, Pos)
 
 import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
-import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position)
+import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..))
 
 import Atuan.CollectTypes (ADTs(..))
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
+
 
 type Expected a = Either String a
 
@@ -19,24 +20,90 @@ class Translatable a where
     translate :: a -> Expected (Exp Label)
 
 
-type Pos = BNFC'Position
 
-type Label = (Pos, Maybe Type)
 
 iname :: A.OTIdent' a -> String
 iname (A.OptionallyTypedIdentifier a (A.TypedIdentifier a2 (A.Ident n) _)) = n
 iname (A.SkippedTypeIdentifier a (A.Ident n)) = n
 
+
+
+makeType' :: Type' a -> Type
+makeType' ty = case ty of
+  TypeInt a -> TInt
+  TypeBool a -> TBool
+  TypeList a ty' -> ADT "List" [makeType' ty']
+  TypeIdent a id -> ADT (itname id) []
+  TypeApp a id tys -> ADT (itname id) (map makeType' tys)
+  TypeVar a id -> TVar (itname id)
+  TypeFunc a ty' ty_a -> TFun (makeType' ty') (makeType' ty_a)
+
+makeType :: TypeAnnot' a -> Type
+makeType (TypeAnnotation a ty) = makeType' ty
+
+makeLabelT :: TIdent' a -> (Ident, Maybe Type)
+makeLabelT (TypedIdentifier a id ta) =
+  (id, Just $ makeType ta)
+
+
+makeLabel :: OTIdent' a -> (Ident, Maybe Type)
+makeLabel oti = case oti of
+  OptionallyTypedIdentifier a ti -> makeLabelT ti
+  SkippedTypeIdentifier a id -> (id, Nothing)
+
+makeLabel' :: OptTypeAnnot' a -> Maybe Type
+makeLabel' opt = case opt of
+  OptionalTypeAnnotation a ta -> Just $ makeType ta
+  SkippedTypeAnnotation a -> Nothing
+
+
+makeFunType :: [Maybe Type] -> Maybe Type
+makeFunType [] = error "Incorrect usage of makeFunType"
+makeFunType [t] = t
+makeFunType (t:ts) = do
+  t' <- t
+  ts' <- makeFunType ts 
+  return $ TFun t' ts'
+
+
+setTypeInLabel :: Label -> Maybe Type -> Label
+setTypeInLabel (p, _) t = (p, t) 
+
+
+setTypeLabel :: Exp Label -> Maybe Type -> Exp Label
+setTypeLabel exp t = case exp of
+  EVar x0 s -> EVar (setTypeInLabel x0 t) s
+  ELit x0 lit -> ELit (setTypeInLabel x0 t) lit
+  EApp x0 exp' exp2 -> EApp (setTypeInLabel x0 t) exp' exp2
+  EAbs x0 s exp' -> EAbs (setTypeInLabel x0 t) s exp'
+  ELet x0 s exp' exp2 -> ELet (setTypeInLabel x0 t) s exp' exp2
+  ELetRec x0 s exp' exp2 -> ELetRec (setTypeInLabel x0 t) s exp' exp2
+  EIf x0 exp' exp2 exp3 -> EIf (setTypeInLabel x0 t) exp' exp2 exp3 
+  EBinOp x0 exp' ob exp2 -> EBinOp (setTypeInLabel x0 t) exp' ob exp2
+  EUnOp x0 ou exp' -> EUnOp (setTypeInLabel x0 t) ou exp'
+  EMatch x0 s pbs -> EMatch (setTypeInLabel x0 t) s pbs
+
+
 -- TODO definitions should not ignore type annotation
 translateDef :: A.Def' Pos -> Expected (Exp Label, String)
 translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     exp' <- translate exp
+    let (ids'', tys) = unzip $ map makeLabel ids
     let ids' = map iname ids
-    case ids' of
-        [] -> return (exp', i)
-        iss -> return (app, i)
-            
+
+    let tr = makeLabel' t
+
+    let ty = makeFunType (tys ++ [tr]) 
+
+
+    if map itname ids'' /= ids' then
+      Left "Incorrect names"
+    else  case ids' of
+          [] -> return (setTypeLabel exp' ty, i)
+          iss -> return (setTypeLabel app ty, i)
             where app = foldr (EAbs (a, Nothing)) exp' iss
+
+                    
 
 instance Translatable (A.Program' Pos) where
     translate (A.ProgramText a []) =
@@ -191,14 +258,14 @@ translatePattern  :: A.Pattern' Pos -> Expected (Pattern Label)
 translatePattern pat = case pat of
   A.PatternLiteral a lit -> Left "Literal Patterns are not supported yet."
   A.PatternConstr a (A.Ident i) fis ->
-    if isStringLower i 
-      then 
+    if isStringLower i
+      then
         (
-          if null fis 
-            then 
-              Right (PatternIdent (a, Nothing) i) 
-            else 
-              Left "lowercase name should be an ident, not constr") 
+          if null fis
+            then
+              Right (PatternIdent (a, Nothing) i)
+            else
+              Left "lowercase name should be an ident, not constr")
       else (do
         fis' <- mapM translatePatternField fis
         return $ PatternConstr (a, Nothing) i fis'
@@ -268,3 +335,35 @@ translateConstrs adt =
 
 -- >>> translate test_3
 -- f x y z
+
+
+
+changeLiteral :: (a -> b) -> Lit a -> Lit b
+changeLiteral f l = case l of
+  LInt a n -> LInt (f a) n
+  LBool a b -> LBool (f a) b
+  LList a exps -> LList (f a) (map (changeLabel f) exps)
+
+changePattern :: (a -> b) -> Pattern a -> Pattern b
+changePattern f pat = case pat of
+  PatternEmptyList a -> PatternEmptyList (f a)
+  PatternConsList a pat' pat_a -> PatternConsList (f a) (changePattern f pat') (changePattern f pat_a) 
+  PatternConstr a s pats -> PatternConstr (f a) s (map (changePattern f) pats)
+  PatternIdent a s -> PatternIdent (f a) s
+
+changePatternBranch :: (a -> b) -> PatternBranch a -> PatternBranch b
+changePatternBranch f (PatternBranch pat exp) = 
+    PatternBranch (changePattern f pat) (changeLabel f exp)
+
+changeLabel :: (a -> b) ->  Exp a -> Exp b
+changeLabel f exp = case exp of
+  EVar a s -> EVar (f a) s
+  ELit a lit -> ELit (f a) (changeLiteral f lit)
+  EApp a exp' exp_a -> EApp (f a) (changeLabel f exp') (changeLabel f exp_a)
+  EAbs a s exp' -> EAbs (f a) s (changeLabel f exp')
+  ELet a s exp' exp_a -> ELet (f a) s (changeLabel f exp') (changeLabel f exp_a)
+  ELetRec a s exp' exp_a -> ELetRec (f a) s (changeLabel f exp') (changeLabel f exp_a)
+  EIf a exp' exp_a exp'' -> EIf (f a) (changeLabel f exp') (changeLabel f exp_a) (changeLabel f exp'')
+  EBinOp a exp' ob exp_a -> EBinOp (f a) (changeLabel f exp') ob (changeLabel f exp_a)
+  EUnOp a ou exp' -> EUnOp (f a) ou (changeLabel f exp')
+  EMatch a s pbs -> EMatch (f a) s (map (changePatternBranch f) pbs)
