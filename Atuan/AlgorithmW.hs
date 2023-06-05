@@ -1,5 +1,6 @@
 -- Based on: https://github.com/mgrabmueller/AlgorithmW
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Atuan.AlgorithmW where
 
@@ -267,6 +268,24 @@ tiLit (LList pos (x:xs)) = do
     return (s3 `composeSubst` sl `composeSubst` s, apply s3 tl)
 
 
+instance Types a => Types (Maybe a) where
+  freeVars :: Types a => Maybe a -> Set.Set String
+  freeVars ot = maybe Set.empty freeVars ot
+  apply :: Types a => Subst -> Maybe a -> Maybe a
+  apply sub ot = case ot of
+    Nothing -> Nothing
+    Just a -> Just $ apply sub a
+
+instantiateAnn :: Maybe Type -> TI (Maybe Type)
+instantiateAnn ot = case ot of
+  Nothing -> return Nothing
+  Just ty -> (do
+        let vars = freeVars ty
+        let s = Scheme (Set.toList vars) ty 
+        ty' <- instantiate s 
+        return $ return ty'
+    )
+
 
 ti  :: Exp Label -> TI (Subst, Type)
 ti (EVar pos n) = do
@@ -276,13 +295,16 @@ ti (EVar pos n) = do
        Just sigma  ->  do  t <- instantiate sigma
                            return (nullSubst, t)
 ti (ELit pos l) = tiLit l
-ti (EAbs pos n e) = do
+ti (EAbs (pos, t) n e) = do
         tv <- newTyVar "a"
         env <- ask
         let TypeEnv env' = remove env n
             env'' = TypeEnv (env' `Map.union` Map.singleton n (Scheme [] tv))
         (s1, t1) <- local (const env'') (ti e)
-        return (s1, TFun (apply s1 tv) t1)
+        let abs_t = TFun (apply s1 tv) t1
+        t' <- instantiateAnn t
+
+        return $ trace ("\n\n User annotation: " ++ show t' ++ "\nActual type: " ++ show abs_t ++ "\n") (s1, abs_t)
 ti exp@(EApp pos e1 e2) = do
         tv <- newTyVar "a"
         (s1, t1) <- ti e1
@@ -378,13 +400,13 @@ tiMatch [] s t = do
     return (s, tv)
 
 tiMatch (b:bs) s t = do
-    (sb, tb) <- trace ("\ntiMatch \nbs lenght: " ++ show (length bs) 
+    (sb, tb) <- trace ("\ntiMatch \nbs lenght: " ++ show (length bs)
                         ++ " \nt: " ++show t ++ "\ns: " ++ show s
                         ++ "\n\n"
-                        ) (tiBranch t b) 
+                        ) (tiBranch t b)
 
     let s' = trace ("\n\n" ++ "\nsb: " ++ show sb
-                        ++ "\ntb: " ++ show tb ++ "\n") 
+                        ++ "\ntb: " ++ show tb ++ "\n")
                 (sb `composeSubst` s)
 
     (sm, tm) <- tiMatch bs s' (apply s' t)
@@ -397,7 +419,7 @@ tiMatch (b:bs) s t = do
                 -- ++ "\ntb: " ++ show tb ++ "\ns': "++ show s' 
                 ++ "\nsm: " ++ show sm
                 ++ "\ntm: " ++ show tm  ++ "\n"
-                ) 
+                )
         (do
             smgu <- mgu tm tb
             return (smgu `composeSubst` sm `composeSubst` s', apply smgu tb)
@@ -411,11 +433,11 @@ unifTypes :: (Subst, Type) -> (Subst, Type) -> TI (Subst, Type)
 unifTypes (s1, t1) (s2, t2) = do
     sm <- mgu t1 t2
     let s1' = sm `composeSubst` s1
-    let s2' = sm `composeSubst` s2 
+    let s2' = sm `composeSubst` s2
 
-    let s3 = s1' `composeSubst` s2' 
+    let s3 = s1' `composeSubst` s2'
     -- s3' <- mgu (apply s3 t1) (apply s3 t2)
- 
+
     -- let s = s3' `composeSubst` s3
 
     -- trace ("Unif types:" ++ "\ns3' " ++ show s3' ++ "\nt1: "++show t1 ++ "\nt2" ++ show t2 ++ "\n\n")
@@ -556,7 +578,7 @@ tiBranch tvar (PatternBranch pat exp)  = do
 
 
 typeInference :: Map.Map String Scheme -> Exp Label -> TI Type
-typeInference env e = do  
+typeInference env e = do
         (s, t) <- local (const $ TypeEnv env) (ti e)
         return (apply s t)
 
