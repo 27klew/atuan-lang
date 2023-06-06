@@ -84,15 +84,8 @@ W języku występuje let, który nie jest rekurencyjny (i jest gorliwy), oraz le
 # Problemy:
 
 - składnie jest nieprzyjemna
-- (TODO )ignorowane są "częściowe annotacje typów"
-	tzn 
+- komunikaty o błedach nie zawsze są przyjemne
 
-	f (x :: Bool) y = x + y
-
-	przechodzi
-
-	to wymaga zmiany składni tak żeby tego parser nie przyjmował. definicja powinna mieć
-	podany typ lub nie.
 	
 
 

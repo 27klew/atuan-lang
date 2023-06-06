@@ -34,7 +34,12 @@ transTop x = case x of
 
 transDef :: Show a => Atuan.Abs.Def' a -> Result
 transDef x = case x of
-  Atuan.Abs.DefinitionT _ ident otidents opttypeannot expr -> failure x
+  Atuan.Abs.DefinitionTyped _ ident tidents typeannot expr -> failure x
+  Atuan.Abs.DefinitionUntyped _ ident ntidents expr -> failure x
+
+transNTIdent :: Show a => Atuan.Abs.NTIdent' a -> Result
+transNTIdent x = case x of
+  Atuan.Abs.UnTypedIndent _ ident -> failure x
 
 transTIdent :: Show a => Atuan.Abs.TIdent' a -> Result
 transTIdent x = case x of
@@ -72,7 +77,8 @@ transBlock x = case x of
 
 transLambda :: Show a => Atuan.Abs.Lambda' a -> Result
 transLambda x = case x of
-  Atuan.Abs.AnonymousFunction _ otidents opttypeannot expr -> failure x
+  Atuan.Abs.AnonymousFunctionTyped _ tidents typeannot expr -> failure x
+  Atuan.Abs.AnonymousFunctionUntyped _ ntidents expr -> failure x
 
 transExpr :: Show a => Atuan.Abs.Expr' a -> Result
 transExpr x = case x of

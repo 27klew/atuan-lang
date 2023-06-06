@@ -28,7 +28,12 @@ data Top' a = TopDef a (Def' a) | TopType a (TypeDef' a)
 
 type Def = Def' BNFC'Position
 data Def' a
-    = DefinitionT a Ident [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
+    = DefinitionTyped a Ident [TIdent' a] (TypeAnnot' a) (Expr' a)
+    | DefinitionUntyped a Ident [NTIdent' a] (Expr' a)
+  deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
+
+type NTIdent = NTIdent' BNFC'Position
+data NTIdent' a = UnTypedIndent a Ident
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type TIdent = TIdent' BNFC'Position
@@ -68,7 +73,8 @@ data Block' a = CurlyBlock a (Expr' a)
 
 type Lambda = Lambda' BNFC'Position
 data Lambda' a
-    = AnonymousFunction a [OTIdent' a] (OptTypeAnnot' a) (Expr' a)
+    = AnonymousFunctionTyped a [TIdent' a] (TypeAnnot' a) (Expr' a)
+    | AnonymousFunctionUntyped a [NTIdent' a] (Expr' a)
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 type Expr = Expr' BNFC'Position
@@ -180,7 +186,12 @@ instance HasPosition Top where
 
 instance HasPosition Def where
   hasPosition = \case
-    DefinitionT p _ _ _ _ -> p
+    DefinitionTyped p _ _ _ _ -> p
+    DefinitionUntyped p _ _ _ -> p
+
+instance HasPosition NTIdent where
+  hasPosition = \case
+    UnTypedIndent p _ -> p
 
 instance HasPosition TIdent where
   hasPosition = \case
@@ -218,7 +229,8 @@ instance HasPosition Block where
 
 instance HasPosition Lambda where
   hasPosition = \case
-    AnonymousFunction p _ _ _ -> p
+    AnonymousFunctionTyped p _ _ _ -> p
+    AnonymousFunctionUntyped p _ _ -> p
 
 instance HasPosition Expr where
   hasPosition = \case

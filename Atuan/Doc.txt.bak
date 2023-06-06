@@ -30,8 +30,8 @@ The set of reserved words is the set of terminals appearing in the grammar. Thos
 
 The reserved words used in Atuan are the following:
   | ``Bool`` | ``Int`` | ``data`` | ``else``
-  | ``if`` | ``in`` | ``let`` | ``match``
-  | ``then`` | ``where`` | ``with`` |
+  | ``if`` | ``in`` | ``let`` | ``letrec``
+  | ``match`` | ``then`` | ``where`` | ``with``
 
 The symbols used in Atuan are the following:
   | = | ( | ) | ::
@@ -55,7 +55,9 @@ All other symbols are terminals.
   | //Program// | -> | //[Top]//
   | //Top// | -> | //Def//
   |  |  **|**  | //TypeDef//
-  | //Def// | -> | //Ident// //[OTIdent]// //OptTypeAnnot// ``=`` //Expr//
+  | //Def// | -> | //Ident// //[TIdent]// //TypeAnnot// ``=`` //Expr//
+  |  |  **|**  | //Ident// //[NTIdent]// ``=`` //Expr//
+  | //NTIdent// | -> | //Ident//
   | //TIdent// | -> | ``(`` //Ident// //TypeAnnot// ``)``
   | //OTIdent// | -> | //TIdent//
   |  |  **|**  | //Ident//
@@ -75,6 +77,10 @@ All other symbols are terminals.
   |  |  **|**  | //Ident// //[Ident]//
   | //[OTIdent]// | -> | **eps**
   |  |  **|**  | //OTIdent// //[OTIdent]//
+  | //[TIdent]// | -> | **eps**
+  |  |  **|**  | //TIdent// //[TIdent]//
+  | //[NTIdent]// | -> | **eps**
+  |  |  **|**  | //NTIdent// //[NTIdent]//
   | //Block// | -> | ``{`` //Expr// ``}``
   | //Lambda// | -> | ``(lambda`` //[OTIdent]// //OptTypeAnnot// ``=>`` //Expr// ``)``
   | //Expr9// | -> | //Ident//
@@ -106,6 +112,7 @@ All other symbols are terminals.
   |  |  **|**  | ``match`` //Ident// ``with`` //[PatternBranch]//
   |  |  **|**  | ``if`` //Expr2// ``then`` //Expr2// ``else`` //Expr2//
   |  |  **|**  | ``let`` //Def// ``in`` //Expr2//
+  |  |  **|**  | ``letrec`` //Def// ``in`` //Expr2//
   |  |  **|**  | //Expr2//
   | //PatternBranch// | -> | ``(`` //Pattern// ``)`` ``>>>`` //Expr2//
   | //[PatternBranch]// | -> | //PatternBranch//

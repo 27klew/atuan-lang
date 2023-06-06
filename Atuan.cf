@@ -8,10 +8,11 @@ TopDef.        Top ::= Def ;
 TopType.        Top ::= TypeDef ;
 
 
--- DefinitionT.   Def ::= [Ident] OptTypeAnnot "=" Expr ;
 
-DefinitionT.   Def ::= Ident [OTIdent] OptTypeAnnot "=" Expr ;
+DefinitionTyped.   Def ::= Ident [TIdent] TypeAnnot "=" Expr ;
+DefinitionUntyped.   Def ::= Ident [NTIdent] "=" Expr ;
 
+UnTypedIndent. NTIdent ::= Ident ;
 
 TypedIdentifier.	TIdent ::= "(" Ident TypeAnnot ")" ;
 
@@ -46,6 +47,8 @@ terminator nonempty Top ";" ;
 separator  nonempty Ident "" ;
 
 separator OTIdent " " ;
+separator TIdent " ";
+separator NTIdent " ";
 
 
 -- expressions ---------------------------------------------
@@ -54,7 +57,8 @@ separator OTIdent " " ;
 CurlyBlock. Block ::= "{" Expr "}" ;
 
 
-AnonymousFunction. Lambda ::= "(lambda" [OTIdent] OptTypeAnnot "=>" Expr ")" ;
+AnonymousFunctionTyped. Lambda ::= "(lambda" [TIdent] TypeAnnot "=>" Expr ")" ;
+AnonymousFunctionUntyped. Lambda ::= "(lambda" [NTIdent] "=>" Expr ")" ;
 
 
 EVar.      Expr9 ::= Ident ;

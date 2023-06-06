@@ -91,7 +91,12 @@ Top
 
 Def :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Def) }
 Def
-  : Ident ListOTIdent OptTypeAnnot '=' Expr { (fst $1, Atuan.Abs.DefinitionT (fst $1) (snd $1) (snd $2) (snd $3) (snd $5)) }
+  : Ident ListTIdent TypeAnnot '=' Expr { (fst $1, Atuan.Abs.DefinitionTyped (fst $1) (snd $1) (snd $2) (snd $3) (snd $5)) }
+  | Ident ListNTIdent '=' Expr { (fst $1, Atuan.Abs.DefinitionUntyped (fst $1) (snd $1) (snd $2) (snd $4)) }
+
+NTIdent :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.NTIdent) }
+NTIdent
+  : Ident { (fst $1, Atuan.Abs.UnTypedIndent (fst $1) (snd $1)) }
 
 TIdent :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.TIdent) }
 TIdent
@@ -147,13 +152,24 @@ ListOTIdent
   : {- empty -} { (Atuan.Abs.BNFC'NoPosition, []) }
   | OTIdent ListOTIdent { (fst $1, (:) (snd $1) (snd $2)) }
 
+ListTIdent :: { (Atuan.Abs.BNFC'Position, [Atuan.Abs.TIdent]) }
+ListTIdent
+  : {- empty -} { (Atuan.Abs.BNFC'NoPosition, []) }
+  | TIdent ListTIdent { (fst $1, (:) (snd $1) (snd $2)) }
+
+ListNTIdent :: { (Atuan.Abs.BNFC'Position, [Atuan.Abs.NTIdent]) }
+ListNTIdent
+  : {- empty -} { (Atuan.Abs.BNFC'NoPosition, []) }
+  | NTIdent ListNTIdent { (fst $1, (:) (snd $1) (snd $2)) }
+
 Block :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Block) }
 Block
   : '{' Expr '}' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.CurlyBlock (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2)) }
 
 Lambda :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Lambda) }
 Lambda
-  : '(lambda' ListOTIdent OptTypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunction (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $5)) }
+  : '(lambda' ListTIdent TypeAnnot '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunctionTyped (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $3) (snd $5)) }
+  | '(lambda' ListNTIdent '=>' Expr ')' { (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1), Atuan.Abs.AnonymousFunctionUntyped (uncurry Atuan.Abs.BNFC'Position (tokenLineCol $1)) (snd $2) (snd $4)) }
 
 Expr9 :: { (Atuan.Abs.BNFC'Position, Atuan.Abs.Expr) }
 Expr9

@@ -6,8 +6,8 @@ module Atuan.Translate where
 
 import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..), Label, Pos)
 
-import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
-import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..))
+import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (..), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
+import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..), NTIdent, NTIdent' (..), TIdent)
 
 import Atuan.CollectTypes (ADTs(..), identToVar')
 import qualified Data.Map (toList, empty, fromList)
@@ -60,10 +60,31 @@ makeLabelT (TypedIdentifier a id ta) = do
   return (id, Just ta')
 
 
+makeEmptyLabel :: Show a => NTIdent' a -> Expected (Ident, Maybe Type)
+makeEmptyLabel (UnTypedIndent a id ) = return (id, Nothing)
+  -- OptionallyTypedIdentifier a ti -> makeLabelT ti
+  -- SkippedTypeIdentifier a id -> return (id, Nothing)
+
+
 makeLabel :: Show a => OTIdent' a -> Expected (Ident, Maybe Type)
 makeLabel oti = case oti of
   OptionallyTypedIdentifier a ti -> makeLabelT ti
   SkippedTypeIdentifier a id -> return (id, Nothing)
+
+
+
+
+makeLabelAnn :: Show a => TypeAnnot' a -> Expected (Maybe Type)
+makeLabelAnn (TypeAnnotation a ty) = do
+      ty' <- makeType' ty     
+      return (Just ty')
+  
+  -- OptionalTypeAnnotation a ta -> (do
+  --     ta' <- makeType ta
+  --     return (Just $ ta')
+  --   )
+  -- SkippedTypeAnnotation a -> return Nothing
+
 
 makeLabel' :: Show a => OptTypeAnnot' a -> Expected (Maybe Type)
 makeLabel' opt = case opt of
@@ -105,14 +126,24 @@ setTypeLabel exp t = case exp of
 -- jakoś tak po porostu stwierdza że każda zmienna to ADT 
 -- zapewne dlatego że są parsowane jako Ident
 
-translateDef :: A.Def' Pos -> Expected (Exp Label, String)
-translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
-    exp' <- translate exp
-    labels <- mapM makeLabel ids
-    let (ids'', tys) = unzip $ labels
-    let ids' = map iname ids
+notTypedIdent :: NTIdent  -> Ident
+notTypedIdent (UnTypedIndent ma id) = id 
 
-    tr <- makeLabel' t
+tiname :: TIdent -> String
+tiname (TypedIdentifier ma id ta) =  itname id
+
+ntiname :: NTIdent' a -> String
+ntiname (UnTypedIndent ma id) =  itname id
+
+
+translateDef :: A.Def' Pos -> Expected (Exp Label, String)
+translateDef (A.DefinitionTyped a (A.Ident i) ids t exp) = do
+    exp' <- translate exp
+    labels <- mapM makeLabelT ids
+    let (ids'', tys) = unzip $ labels
+    let ids' = map tiname ids
+
+    tr <- makeLabelAnn t
 
     let ty = makeFunType (tys ++ [tr])
 
@@ -122,6 +153,24 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     else  case ids' of
           [] -> return (setTypeLabel exp' ty, i)
           iss -> return (setTypeLabel app ty, i)
+            where app = foldr (EAbs (a, Nothing)) exp' iss
+
+translateDef (A.DefinitionUntyped a (A.Ident i) ids exp) = do
+    exp' <- translate exp
+    labels <- mapM makeEmptyLabel ( ids)
+    let (ids'', tys) = unzip labels
+    let ids' = map ntiname ids
+
+    -- tr <- makeLabel' t
+
+    -- let ty = makeFunType (tys ++ [tr])
+
+
+    if map itname ids'' /= ids' then
+      Left "Incorrect names"
+    else  case ids' of
+          [] -> return (setTypeLabel exp' Nothing, i)
+          iss -> return (setTypeLabel app Nothing, i)
             where app = foldr (EAbs (a, Nothing)) exp' iss
 
 
@@ -145,8 +194,11 @@ instance Translatable A.BoolLiteral where
 
 instance Translatable (A.Lambda' Pos) where
   translate :: A.Lambda' Pos -> Expected (Exp Label)
-  translate (A.AnonymousFunction a ids t exp) = do
-    (exp', _) <- translateDef (A.DefinitionT a (A.Ident "__anonymous__") ids t exp)
+  translate (A.AnonymousFunctionTyped a ids t exp) = do
+    (exp', _) <- translateDef (A.DefinitionTyped a (A.Ident "__anonymous__") ids t exp)
+    return exp'
+  translate (A.AnonymousFunctionUntyped a ids exp) = do
+    (exp', _) <- translateDef (A.DefinitionUntyped a (A.Ident "__anonymous__") ids exp)
     return exp'
 
 instance Translatable (A.Val' Pos) where

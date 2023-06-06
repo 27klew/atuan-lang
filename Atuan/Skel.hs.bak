@@ -34,7 +34,12 @@ transTop x = case x of
 
 transDef :: Show a => Atuan.Abs.Def' a -> Result
 transDef x = case x of
-  Atuan.Abs.DefinitionT _ ident otidents opttypeannot expr -> failure x
+  Atuan.Abs.DefinitionTyped _ ident tidents typeannot expr -> failure x
+  Atuan.Abs.DefinitionUntyped _ ident ntidents expr -> failure x
+
+transNTIdent :: Show a => Atuan.Abs.NTIdent' a -> Result
+transNTIdent x = case x of
+  Atuan.Abs.UnTypedIndent _ ident -> failure x
 
 transTIdent :: Show a => Atuan.Abs.TIdent' a -> Result
 transTIdent x = case x of
@@ -152,4 +157,5 @@ transType x = case x of
   Atuan.Abs.TypeList _ type_ -> failure x
   Atuan.Abs.TypeIdent _ ident -> failure x
   Atuan.Abs.TypeApp _ ident types -> failure x
+  Atuan.Abs.TypeVar _ ident -> failure x
   Atuan.Abs.TypeFunc _ type_1 type_2 -> failure x

@@ -153,7 +153,12 @@ instance Print (Atuan.Abs.Top' a) where
 
 instance Print (Atuan.Abs.Def' a) where
   prt i = \case
-    Atuan.Abs.DefinitionT _ id_ otidents opttypeannot expr -> prPrec i 0 (concatD [prt 0 id_, prt 0 otidents, prt 0 opttypeannot, doc (showString "="), prt 0 expr])
+    Atuan.Abs.DefinitionTyped _ id_ tidents typeannot expr -> prPrec i 0 (concatD [prt 0 id_, prt 0 tidents, prt 0 typeannot, doc (showString "="), prt 0 expr])
+    Atuan.Abs.DefinitionUntyped _ id_ ntidents expr -> prPrec i 0 (concatD [prt 0 id_, prt 0 ntidents, doc (showString "="), prt 0 expr])
+
+instance Print (Atuan.Abs.NTIdent' a) where
+  prt i = \case
+    Atuan.Abs.UnTypedIndent _ id_ -> prPrec i 0 (concatD [prt 0 id_])
 
 instance Print (Atuan.Abs.TIdent' a) where
   prt i = \case
@@ -208,13 +213,22 @@ instance Print [Atuan.Abs.OTIdent' a] where
   prt _ [] = concatD []
   prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
 
+instance Print [Atuan.Abs.TIdent' a] where
+  prt _ [] = concatD []
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
+
+instance Print [Atuan.Abs.NTIdent' a] where
+  prt _ [] = concatD []
+  prt _ (x:xs) = concatD [prt 0 x, doc (showString " "), prt 0 xs]
+
 instance Print (Atuan.Abs.Block' a) where
   prt i = \case
     Atuan.Abs.CurlyBlock _ expr -> prPrec i 0 (concatD [doc (showString "{"), prt 0 expr, doc (showString "}")])
 
 instance Print (Atuan.Abs.Lambda' a) where
   prt i = \case
-    Atuan.Abs.AnonymousFunction _ otidents opttypeannot expr -> prPrec i 0 (concatD [doc (showString "(lambda"), prt 0 otidents, prt 0 opttypeannot, doc (showString "=>"), prt 0 expr, doc (showString ")")])
+    Atuan.Abs.AnonymousFunctionTyped _ tidents typeannot expr -> prPrec i 0 (concatD [doc (showString "(lambda"), prt 0 tidents, prt 0 typeannot, doc (showString "=>"), prt 0 expr, doc (showString ")")])
+    Atuan.Abs.AnonymousFunctionUntyped _ ntidents expr -> prPrec i 0 (concatD [doc (showString "(lambda"), prt 0 ntidents, doc (showString "=>"), prt 0 expr, doc (showString ")")])
 
 instance Print (Atuan.Abs.Expr' a) where
   prt i = \case
