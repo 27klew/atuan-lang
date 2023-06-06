@@ -1,7 +1,6 @@
 module Atuan.Evaluate where
 
-
-import Atuan.AlgorithmW (Exp(..), Lit (..), OpBin (..), MulOp (..), AddOp (..), RelOp (..), OpUn (..), PatternBranch (..), Pattern (..), Pos)
+import Atuan.Types(Exp(..), Lit (..), OpBin (..), MulOp (..), AddOp (..), RelOp (..), OpUn (..), PatternBranch (..), Pattern (..), Pos)
 
 import Data.Map(Map(..), member, lookup, union, fromList, insert, empty, toList, unions)
 import Control.Monad.Reader (ReaderT (runReaderT), MonadReader (ask, local), runReader)

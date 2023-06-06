@@ -37,7 +37,7 @@ import Atuan.Translate (Translatable (translate), translateConstrs, changeLabel)
 import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv')
 import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval, Val)
 import Atuan.Evaluate (Val'(..))
-import Atuan.AlgorithmW (Exp (..), Lit (..), PatternBranch (..), Pattern (..))
+import Atuan.Types (Exp (..), Lit (..), PatternBranch (..), Pattern (..))
 -- import Atuan.MatchComplete (Completion)
 
 

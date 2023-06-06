@@ -4,7 +4,8 @@
 
 module Atuan.Translate where
 
-import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..), TypeEnv (..), Type (..), Scheme, generalize, PatternBranch (..), Pattern (..), Label, Pos)
+import Atuan.Types(Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulOp (..), RelOp (..), AddOp(..),  Type (..), Scheme, PatternBranch (..), Pattern (..), Label, Pos)
+import Atuan.AlgorithmW ( generalize, TypeEnv (..),)
 
 import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (..), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
 import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..), NTIdent, NTIdent' (..), TIdent)
@@ -42,14 +43,14 @@ makeType' ty' = do
     TypeIdent a id -> return $ ADT (itname id) []
     TypeApp a id tys -> (do
                 tys' <- mapM makeType' tys
-                return $ ADT (itname id) (tys')
+                return $ ADT (itname id) tys'
              
              )
     TypeVar a id -> return $ TVar (itname id)
     TypeFunc a ty' ty_a -> (do 
           ty'' <- makeType' ty'
           ty_a' <- makeType' ty_a
-          return $ TFun (ty'') (ty_a')
+          return $ TFun ty'' ty_a'
       )
 makeType :: Show a => TypeAnnot' a -> Expected Type
 makeType (TypeAnnotation a ty) = makeType' ty
@@ -90,7 +91,7 @@ makeLabel' :: Show a => OptTypeAnnot' a -> Expected (Maybe Type)
 makeLabel' opt = case opt of
   OptionalTypeAnnotation a ta -> (do
       ta' <- makeType ta
-      return (Just $ ta')
+      return (Just ta')
     )
   SkippedTypeAnnotation a -> return Nothing
 
@@ -140,7 +141,7 @@ translateDef :: A.Def' Pos -> Expected (Exp Label, String)
 translateDef (A.DefinitionTyped a (A.Ident i) ids t exp) = do
     exp' <- translate exp
     labels <- mapM makeLabelT ids
-    let (ids'', tys) = unzip $ labels
+    let (ids'', tys) = unzip labels
     let ids' = map tiname ids
 
     tr <- makeLabelAnn t
@@ -157,7 +158,7 @@ translateDef (A.DefinitionTyped a (A.Ident i) ids t exp) = do
 
 translateDef (A.DefinitionUntyped a (A.Ident i) ids exp) = do
     exp' <- translate exp
-    labels <- mapM makeEmptyLabel ( ids)
+    labels <- mapM makeEmptyLabel ids
     let (ids'', tys) = unzip labels
     let ids' = map ntiname ids
 

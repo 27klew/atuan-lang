@@ -26,46 +26,7 @@ import Data.Maybe (isNothing, catMaybes)
 import Maybes (isJust)
 -- import Atuan.MatchComplete (checkTotality)
 
-
-type Pos = BNFC'Position
-
-type Label = (Pos, Maybe Type)
-
-data Exp a =  EVar a String
-             |  ELit a (Lit a)
-             |  EApp a (Exp a) (Exp a)
-             |  EAbs a String (Exp a)
-             |  ELet a String (Exp a) (Exp a)
-             |  ELetRec a String (Exp a) (Exp a)
-             |  EIf a (Exp a) (Exp a) (Exp a)
-             |  EBinOp a (Exp a) OpBin (Exp a)
-             |  EUnOp  a OpUn (Exp a)
-             |  EMatch a String [PatternBranch a]
-
-             deriving (Eq, Ord)
-
-
-
-data PatternBranch a = PatternBranch (Pattern a) (Exp a) deriving (Eq, Ord)
-
-data Pattern a =
-    PatternEmptyList a
-    | PatternConsList a (Pattern a) (Pattern a)
-    -- | PatternLiteral Exp
-    |  PatternConstr a String [Pattern a]
-    |  PatternIdent a String
-    deriving (Eq, Ord, Show)
-
-
-
-data OpUn = OpNeg | OpNot deriving (Eq, Ord)
-data OpBin = OpMul MulOp | OpAdd AddOp | OpRel RelOp | OpAnd | OpOr deriving (Eq, Ord)
-
-data MulOp = Times | Div | Mod deriving (Eq, Ord)
-
-data AddOp = Plus  | Minus deriving (Eq, Ord)
-
-data RelOp = LTH  | LE  | GTH  | GE  | EQU | NE deriving (Eq, Ord)
+import Atuan.Types
 
 
 opBinRes :: OpBin -> Type
@@ -93,39 +54,11 @@ opUnArg :: OpUn -> Type
 opUnArg OpNeg = TInt
 opUnArg OpNot = TBool
 
-data Lit a    =  LInt a Integer
-             |  LBool a Bool
-             |  LList a [Exp a]
-             deriving (Eq, Ord)
-
-data Type    =  TVar String
-             |  TInt
-             |  TBool
-             |  TFun Type Type
-             |  ADT String [Type]
-             deriving (Eq, Ord)
-
-data Scheme  =  Scheme [String] Type
-
 
 class Types a where
     freeVars    ::  a -> Set.Set String
     apply  ::  Subst -> a -> a
 
-
--- class Collectible a where
---     collect :: (a -> Set.Set b) -> a -> Set.Set b 
-
-
-
--- instance Collectible Type where
---   collect :: (Type -> Set.Set b) -> Type -> Set.Set b
---   collect f t = case t of
---     TVar s -> f (TVar s)
---     TInt -> f (TInt s)
---     TBool -> _
---     TFun ty ty' -> _
---     ADT s tys -> _
 
 
 instance Types Type where
