@@ -1,4 +1,4 @@
 good/match_list.hs
-"In List:  (Cons): unchecked variants: fromList [\"Cons\"]"
- In List:  (Cons): unchecked variants: fromList ["Cons"]
 
+Type of main: Int
+value: 1

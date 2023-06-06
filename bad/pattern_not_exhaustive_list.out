@@ -1,4 +1,4 @@
-bad/execution_pattern_not_exhaustive.hs
+bad/pattern_not_exhaustive_list.hs
 "unchecked variants: fromList [\"Empty\"]"
  unchecked variants: fromList ["Empty"]
 
