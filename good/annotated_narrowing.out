@@ -1,0 +1,4 @@
+good/annotated_narrowing.hs
+
+Type of main: Int -> Int
+value: VFun "x" (fromList [("Cons",1),("Empty",0),("id",2)]) x

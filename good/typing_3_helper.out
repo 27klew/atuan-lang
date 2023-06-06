@@ -1,0 +1,5 @@
+bad/typing_3_helper.hs
+
+Type of main: Tree:  ["Int"] -> Int
+value: VFun "a" (fromList [("Cons",3),("Empty",2),("Leaf",1),("Node",0),("b",4)]) Match a with  (Node x  r  l   ) -> x
+              (Leaf ) -> 0

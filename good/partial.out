@@ -1,0 +1,4 @@
+good/partial.hs
+
+Type of main: Int -> Int
+value: VFun "y" (fromList [("Cons",1),("Empty",0),("mult",2),("ten",3),("x",5)]) ( x ) * ( y )

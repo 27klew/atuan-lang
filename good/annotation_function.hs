@@ -1,7 +1,7 @@
 
 
 
-f :: (Int ->Int) = (lambda x => x + 1);
+f :: (Int ->Int) = (lambda (x :: Int) :: Int => x  + 1);
 
 
 main = f 4;

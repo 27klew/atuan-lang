@@ -1,0 +1,4 @@
+good/typing_2.hs
+
+Type of main: List:  ["TypedTree:  [\"Int\"]"]
+value: [VADT "Node" [VInt 1,VADT "Leaf" [],VADT "Leaf" []], VADT "Node" [VInt 2,VADT "Leaf" [],VADT "Leaf" []], VADT "Node" [VInt 3,VADT "Leaf" [],VADT "Leaf" []], VADT "Node" [VInt 4,VADT "Leaf" [],VADT "Leaf" []], VADT "Node" [VInt 5,VADT "Leaf" [],VADT "Leaf" []], ]

@@ -1,0 +1,4 @@
+good/higher_type.hs
+
+Type of main: (a9 -> a9) -> a9 -> a9
+value: VFun "f" (fromList [("Cons",1),("Empty",0),("double",2)]) \x -> f (f x)

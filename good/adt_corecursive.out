@@ -1,0 +1,4 @@
+good/adt_corecursive.hs
+
+Type of main: A:  ["Int"]
+value: VADT "AB" [VADT "BB" [VInt 3]]

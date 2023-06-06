@@ -1,0 +1,4 @@
+good/adt_simple.hs
+
+Type of main: Tree:  []
+value: VADT "NodeSimple" [VInt 5,VADT "NodeSimple" [VInt 3,VADT "LeafSimple" [],VADT "LeafSimple" []],VADT "NodeSimple" [VInt 5,VADT "LeafSimple" [],VADT "LeafSimple" []]]

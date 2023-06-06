@@ -1,0 +1,4 @@
+good/partial_constructor_application.hs
+
+Type of main: List:  ["Maybe:  [\"Int\"]"]
+value: [VADT "Just" [VInt 1], VADT "Just" [VInt 2], VADT "Just" [VInt 3], VADT "Just" [VInt 4], VADT "Just" [VInt 5], ]

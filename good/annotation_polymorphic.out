@@ -1,0 +1,4 @@
+good/annotation_polymorphic.hs
+
+Type of main: a15 -> a15
+value: VFun "x" (fromList [("Cons",1),("Empty",0),("id",2)]) x

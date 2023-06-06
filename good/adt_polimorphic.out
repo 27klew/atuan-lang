@@ -1,0 +1,4 @@
+good/adt_polimorphic.hs
+
+Type of main: TypedTree:  ["Int"]
+value: VADT "Node" [VInt 1,VADT "Node" [VInt 2,VADT "Leaf" [],VADT "Leaf" []],VADT "Node" [VInt 5,VADT "Node" [VInt 3,VADT "Leaf" [],VADT "Leaf" []],VADT "Node" [VInt 4,VADT "Leaf" [],VADT "Leaf" []]]]
