@@ -1,0 +1,5 @@
+bad/type_mismatch_annotation_narrowed.hs
+"types do not unify: Int vs. Bool\n in id True"
+ types do not unify: Int vs. Bool
+ in id True
+

@@ -1,0 +1,2 @@
+bad/adt_8_type_lowercase.hs
+error: Error: type names should begin with capital letters. offending name:Ident "someType"

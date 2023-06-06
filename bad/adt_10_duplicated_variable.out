@@ -1,0 +1,2 @@
+bad/adt_10_duplicated_variable.hs
+error: Duplicate variable Just "a"at position Just (2,1)

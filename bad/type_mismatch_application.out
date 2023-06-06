@@ -1,0 +1,5 @@
+bad/type_mismatch_application.hs
+"types do not unify: Bool vs. Int\n in do_and 42"
+ types do not unify: Bool vs. Int
+ in do_and 42
+

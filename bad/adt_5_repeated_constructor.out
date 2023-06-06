@@ -1,0 +1,2 @@
+bad/adt_5_repeated_constructor.hs
+error: Multiple declarations of constructor Ident "Node" at position Just (12,9)

@@ -1,0 +1,4 @@
+bad/execution_division_by_zero.hs
+
+Type of main: Int
+Something went wrong in the calcutation: Error: Division by zero. at Just (6,5)

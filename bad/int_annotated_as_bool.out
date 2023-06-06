@@ -1,0 +1,4 @@
+bad/int_annotated_as_bool.hs
+"types do not unify: Bool vs. Int"
+ types do not unify: Bool vs. Int
+

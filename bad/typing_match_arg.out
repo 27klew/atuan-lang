@@ -1,0 +1,5 @@
+bad/typing_match_arg.hs
+"types do not unify: Bool vs. Int\n in b a"
+ types do not unify: Bool vs. Int
+ in b a
+

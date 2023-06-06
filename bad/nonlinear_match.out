@@ -1,0 +1,4 @@
+bad/nonlinear_match.hs
+"Duplicated declarationsTypeEnv {getEnv = fromList [(\"a\",All. a4)]}"
+ Duplicated declarationsTypeEnv {getEnv = fromList [("a",All. a4)]}
+

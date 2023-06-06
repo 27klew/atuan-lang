@@ -1,0 +1,14 @@
+bad/empty.hs
+
+Parse              Failed...
+
+Tokens:
+3:1	"data"
+3:6	"Empty"
+3:12	"where"
+4:9	";"
+7:1	"main"
+7:6	"="
+7:8	"3"
+7:9	";"
+syntax error at line 4, column 9 before `;'

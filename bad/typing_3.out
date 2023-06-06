@@ -1,0 +1,5 @@
+bad/typing_3.hs
+"types do not unify: Int vs. Bool\n in b (Node True Leaf Leaf)"
+ types do not unify: Int vs. Bool
+ in b (Node True Leaf Leaf)
+

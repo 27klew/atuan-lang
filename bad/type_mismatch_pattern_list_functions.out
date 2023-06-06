@@ -1,0 +1,5 @@
+bad/type_mismatch_pattern_list_functions.hs
+"types do not unify: Int vs. Bool\n in f fs2 True"
+ types do not unify: Int vs. Bool
+ in f fs2 True
+

@@ -1,0 +1,2 @@
+bad/adt_1_constructing_other_type.hs
+error: Data constructor should construct value in type Ident "TypedTree" at Just (11,61)

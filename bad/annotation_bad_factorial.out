@@ -1,0 +1,4 @@
+bad/annotation_bad_factorial.hs
+"Annotation is too general a -> Int vs Int -> Int"
+ Annotation is too general a -> Int vs Int -> Int
+

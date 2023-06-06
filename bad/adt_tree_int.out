@@ -1,0 +1,2 @@
+bad/adt_tree_int.hs
+error: GADTs with variables not present in result re not supported. offending varibles: fromList [Ident "a"]

@@ -18,7 +18,8 @@ b a = match a with
 
 ll a = match a with
     (Node x r l) >>> ll l,
-    (Node x Leaf l) >>> Leaf;
+    (Node x Leaf l) >>> Leaf,
+    (Leaf) >>> Leaf;
 
 f x = b (ll x);
 

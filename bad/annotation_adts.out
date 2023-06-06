@@ -1,0 +1,5 @@
+bad/annotation_adts.hs
+"types do not unify: A3:  [] vs. Int\n in id2 3"
+ types do not unify: A3:  [] vs. Int
+ in id2 3
+

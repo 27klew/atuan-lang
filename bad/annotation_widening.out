@@ -1,0 +1,4 @@
+bad/annotation_widening.hs
+"Annotation is too general a -> b vs a1 -> a1"
+ Annotation is too general a -> b vs a1 -> a1
+

@@ -1,0 +1,2 @@
+bad/adt_3_too_many_variables.hs
+error: Data constructor should specialize all type variables Ident "AnotherTree" at Just (6,22)

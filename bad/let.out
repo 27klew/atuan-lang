@@ -1,0 +1,4 @@
+bad/let.hs
+"unbound variable: x"
+ unbound variable: x
+

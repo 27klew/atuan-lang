@@ -1,0 +1,2 @@
+bad/adt_2_uppercase_variable.hs
+error: Error: type variables should begin with small letter.offending name: Ident "A"at: Just (5,18)

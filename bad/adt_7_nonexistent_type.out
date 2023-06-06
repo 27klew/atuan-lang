@@ -1,0 +1,2 @@
+bad/adt_7_nonexistent_type.hs
+error: Unknown type: Ident "Someone"

@@ -1,0 +1,4 @@
+bad/type_mismatch_match.hs
+"types do not unify: Int vs. Bool"
+ types do not unify: Int vs. Bool
+

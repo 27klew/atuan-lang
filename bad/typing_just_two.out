@@ -1,0 +1,5 @@
+bad/typing_just_two.hs
+"types do not unify: Maybe:  [\"Int\"] vs. Int -> a27\n in head (map Just xs) 3"
+ types do not unify: Maybe:  ["Int"] vs. Int -> a27
+ in head (map Just xs) 3
+

@@ -1,0 +1,4 @@
+bad/annotation_function_higher_order.hs
+"Annotation is too general (b -> b) -> t -> t vs (a3 -> a3) -> a3 -> a3"
+ Annotation is too general (b -> b) -> t -> t vs (a3 -> a3) -> a3 -> a3
+

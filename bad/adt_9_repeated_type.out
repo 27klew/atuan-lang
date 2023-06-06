@@ -1,0 +1,2 @@
+bad/adt_9_repeated_type.hs
+error: Multiple definitions of : Ident "Tree"

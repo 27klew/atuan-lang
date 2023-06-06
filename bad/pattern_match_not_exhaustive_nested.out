@@ -1,0 +1,4 @@
+bad/not_exhaustive_nested_match.hs
+"In List:  (Cons): unchecked variants: fromList [\"Leaf\"]"
+ In List:  (Cons): unchecked variants: fromList ["Leaf"]
+

@@ -1,0 +1,5 @@
+bad/second_order.hs
+"types do not unify: Bool vs. Int\n in fun id True 3"
+ types do not unify: Bool vs. Int
+ in fun id True 3
+
