@@ -12,7 +12,7 @@ y = Make;
 id2 (x :: a3) :: a3 = x;
 
 
-id3 (x :: a3) :: a3 = y;
+id3 (x :: a3) :: A3 = y;
 
 
 main = id2 3;

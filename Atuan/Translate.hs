@@ -12,6 +12,7 @@ import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (
 import Atuan.CollectTypes (ADTs(..), identToVar')
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
+import Debug.Trace (trace)
 
 
 type Expected a = Either String a
@@ -119,7 +120,7 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     if map itname ids'' /= ids' then
       Left "Incorrect names"
     else  case ids' of
-          [] -> return (setTypeLabel exp' ty, i)
+          [] -> return $ trace ("translateDef: " ++ show exp') (setTypeLabel exp' ty, i)
           iss -> return (setTypeLabel app ty, i)
             where app = foldr (EAbs (a, Nothing)) exp' iss
 

@@ -9,7 +9,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 
-import Control.Monad.Except(runExceptT, MonadError(throwError, catchError), ExceptT)
+import Control.Monad.Except(runExceptT, MonadError(throwError, catchError), ExceptT, when)
 import Control.Monad.Reader(ReaderT(runReaderT), MonadReader (ask, local) )
 import Control.Monad.State(MonadState(put, get), StateT(runStateT) )
 import Control.Monad (foldM, unless)
@@ -276,15 +276,13 @@ instance Types a => Types (Maybe a) where
     Nothing -> Nothing
     Just a -> Just $ apply sub a
 
-instantiateAnn :: Maybe Type -> TI (Maybe Type)
-instantiateAnn ot = case ot of
-  Nothing -> return Nothing
-  Just ty -> (do
-        let vars = freeVars ty
-        let s = Scheme (Set.toList vars) ty 
-        ty' <- instantiate s 
-        return $ return ty'
-    )
+instantiateAnn :: Type -> TI (Type)
+instantiateAnn ty = do
+    let vars = freeVars ty
+    let s = Scheme (Set.toList vars) ty 
+    ty' <- instantiate s 
+    return ty'
+
 
 
 mguAnn :: Maybe Type -> Type -> TI Subst
@@ -292,60 +290,68 @@ mguAnn Nothing _ = return nullSubst
 mguAnn (Just t1) t2 = mgu t1 t2
 
 
+-- mguAnn' :: Maybe Type -> Type -> TI Subst 
+-- mguAnn' Nothin _ = return nullSubst
+-- 
+
+isVar :: Type -> Bool
+isVar (TVar _ ) = True
+isVar _ = False
+
+unique :: Ord a => [a] -> Bool
+unique xs = (length (Set.fromList xs) == length xs)
+
+checkLabel :: Maybe Type -> Type -> TI Subst
+checkLabel Nothing _ = return nullSubst
+checkLabel (Just label') ty = do 
+    label <- instantiateAnn label'
+    sub <- mgu label ty
+    let vals = Map.elems sub
+    unless (all isVar vals && unique vals)
+        (throwError $ "Annotation is too general " ++ show label' ++ " vs " ++ show ty)
+    return sub
+
+
 ti  :: Exp Label -> TI (Subst, Type)
-ti (EVar pos n) = do
+ti (EVar (pos, label) n) = do
     env <- ask
     case Map.lookup n (getEnv env) of
        Nothing     ->  throwError $ "unbound variable: " ++ n
        Just sigma  ->  do  t <- instantiate sigma
-                           return (nullSubst, t)
-ti (ELit pos l) = tiLit l
-ti (EAbs (pos, t) n e) = do
+                           checkLabelRes label (nullSubst, t)
+ti (ELit (pos, label) l) = do 
+    res <- tiLit l
+    checkLabelRes label res
+ti (EAbs (pos, label) n e) = do
         tv <- newTyVar "a"
         env <- ask
         let TypeEnv env' = remove env n
             env'' = TypeEnv (env' `Map.union` Map.singleton n (Scheme [] tv))
         (s1, t1) <- local (const env'') (ti e)
-        let abs_t = TFun (apply s1 tv) t1
-        
-        -- let t' = t
-        t' <- instantiateAnn t
+        let abs_t = apply s1 $ TFun tv t1
 
-        s'' <- mguAnn t' abs_t
-        
-        let s' = composeSubst s'' s1
+        checkLabelRes label (s1, apply s1 abs_t)
 
-        let t'' = apply s' t'
-
-
-        return $ trace (
-            "t: " ++ show t ++
-            "\n\n User annotation: " ++ show t' 
-            ++ "\nActual type: " ++ show abs_t ++ "\nafter subst: " 
-            ++ show t'' ++ "\nsubst: "++ show s' ++ "\n"
-            ) 
-            (s', apply s' abs_t)
-
-ti exp@(EApp pos e1 e2) = do
+ti exp@(EApp (pos, label) e1 e2) = do
         tv <- newTyVar "a"
         (s1, t1) <- ti e1
         (s2, t2) <- local (apply s1) (ti e2)
         s3 <- mgu (apply s2 t1) (TFun t2 tv)
-        return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
+        checkLabelRes label (s3 `composeSubst` s2 `composeSubst` s1, apply s3 tv)
     `catchError`
     \e -> throwError $ e ++ "\n in " ++ show exp
 
-ti (ELet pos x e1 e2) = do
+ti (ELet (pos, label) x e1 e2) = do
         (s1, t1) <- ti e1
         env <- ask
         let TypeEnv env' = remove env x
             t' = generalize (apply s1 env) t1
             env'' = TypeEnv (Map.insert x t' env')
         (s2, t2) <- local (const $ apply s1 env'') (ti  e2)
-        return (s1 `composeSubst` s2, t2)
+        checkLabelRes label (s1 `composeSubst` s2, t2)
 
 
-ti (ELetRec pos x e1 e2) = do
+ti (ELetRec (pos, label) x e1 e2) = do
     env <- ask
     let TypeEnv env' = remove env x
     tv <- newTyVar "a"
@@ -356,10 +362,10 @@ ti (ELetRec pos x e1 e2) = do
     let t' = generalize (apply s1 (TypeEnv env')) t1
     let env'' = TypeEnv (Map.insert x t' env')
     (s2, t2) <- local (const (apply s1 env'')) (ti  e2)
-    return (s1 `composeSubst` s2, t2)
+    checkLabelRes label (s1 `composeSubst` s2, t2)
 
 
-ti (EIf pos cond e1 e2) = do
+ti (EIf (pos, label) cond e1 e2) = do
     (sc, tc) <- ti cond
     sc' <- mgu (apply sc tc) TBool
 
@@ -367,52 +373,43 @@ ti (EIf pos cond e1 e2) = do
     (s2, t2) <- local (apply s1) (ti e2)
     s3 <- mgu (apply s2 t1) (apply s2 t2)
 
-    return (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
+    checkLabelRes label 
+        (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
 
 
 
-ti (EBinOp pos e1 op e2) = do
+ti (EBinOp (pos, label) e1 op e2) = do
     let ta = opBinArg op
     (s1, t1) <- ti e1
     (s2, t2) <- local (apply s1) (ti e2)
     s3 <- mgu (apply s2 t1) (apply s2 t2)
     s4 <- mgu (apply s3 t1) ta
 
-    -- s3' <- mgu (apply s3 t2) t
-
     let tr = opBinRes op
 
-    return (s4 `composeSubst` s3 `composeSubst` s2 `composeSubst` s1, tr)
-
-    -- old:
-    -- s3' <- mgu (apply s3 t2) t
-    -- return (s3' `composeSubst` s2 `composeSubst` s1, apply s3' t2)
+    checkLabelRes label 
+        (s4 `composeSubst` s3 `composeSubst` s2 `composeSubst` s1, tr)
 
 
-ti (EUnOp pos op e) = do
+
+ti (EUnOp (pos, label) op e) = do
     let targ = opUnArg op
     (s1, t1) <- ti e
     s2 <- mgu (apply s1 t1) targ
-
     let tres = opUnRes op
-
-    return (s2 `composeSubst` s1, apply s2 tres)
-
+    checkLabelRes label (s2 `composeSubst` s1, apply s2 tres)
 
 
--- ti (EMatch pos i brs) = do
---     (s, t) <- ti (EVar pos i)
---     rs <- mapM (tiBranch t) brs
---     tv <- newTyVar "a"
---     (s', t') <- foldM unifTypes (nullSubst, tv) rs
+ti (EMatch (pos, label) i bs) = do
+    (s, t) <- ti (EVar (pos, Nothing) i)
+    (s_, t_ ) <- tiMatch bs s t
+    checkLabelRes label ( s_,  t_)
 
 
---     trace ("tiMatch\nrs: " ++ show rs ++ "\nt: " ++ show t ++ "\nt' " ++ show t' ++"\ns' " ++ show s' ++ "\n\n")
---         return (s' `composeSubst` s, apply s' t')
-
-ti (EMatch pos i bs) = do
-    (s, t) <- ti (EVar pos i)
-    tiMatch bs s t
+checkLabelRes :: Maybe Type -> (Subst, Type) -> TI (Subst, Type)
+checkLabelRes label (s, t) = do
+    sl <- checkLabel label t
+    return (sl `composeSubst` s, apply sl t) 
 
 
 tiMatch :: [PatternBranch Label] -> Subst -> Type -> TI (Subst, Type)
