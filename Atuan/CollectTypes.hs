@@ -266,9 +266,15 @@ checkDataConstr id vars (DataConstructor pos ident (TypeAnnotation _ ty)) = do
         (id' /= id)
         (throwError $ "Data constructor should construct value in type " ++ show id ++ " at " ++ show a)
 
-      when
-        (length tys /= length vars)
-        (throwError $ "Data constructor should specialize all type variables " ++ show id' ++ " at " ++ show a)
+      let len_actual = length tys
+      let len_should = length vars
+      when (len_actual > len_should)
+        (throwError $ "Too many variables specialized in constructor " 
+            ++ show id' ++ " at " ++ show a ++ " received " ++ show len_actual ++ " expected " ++ show len_should)
+      when (len_actual < len_should)
+        (throwError $ "Too few variables specialized in constructor " 
+            ++ show id' ++ " at " ++ show a ++ " received " ++ show len_actual ++ " expected " ++ show len_should)
+    
     t -> throwError $ "Data constructor should result in creation of value in type " ++ show id ++ " received " ++ show t
 
   let tvs = getVars ty

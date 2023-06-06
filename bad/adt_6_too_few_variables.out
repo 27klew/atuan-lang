@@ -1,2 +1,2 @@
 bad/adt_6_too_few_variables.hs
-error: Data constructor should specialize all type variables Ident "AnotherTree" at Just (6,22)
+error: Too few variables specialized in constructor Ident "AnotherTree" at Just (6,22) received 1 expected 3
