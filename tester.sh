@@ -15,7 +15,7 @@ for filename in good/*.hs; do
 
 done
 
-echo "finished tests of good"
+echo "Finished tests of good!"
 
 for filename in bad/*.hs; do
 	name=${filename##*/}
@@ -33,3 +33,8 @@ for filename in bad/*.hs; do
 done
 
 rm a.out
+
+echo "Finished tests of bad!"
+
+echo "Testing Ended!"
+
