@@ -38,6 +38,7 @@ import qualified Atuan.AlgorithmW  as W (ti, test, testDefault, testEnv, testEnv
 import qualified Atuan.Evaluate as Eval (eval, Val'(..), testEval, Val)
 import Atuan.Evaluate (Val'(..))
 import Atuan.AlgorithmW (Exp (..), Lit (..), PatternBranch (..), Pattern (..))
+-- import Atuan.MatchComplete (Completion)
 
 
 debug = False
@@ -90,9 +91,9 @@ showType types name =
 
 
 showTypes :: Show a =>  ADTs a -> String
-showTypes (ADTs types constr) =
+showTypes (ADTs types constr par) =
   "ADTs: " ++ intercalate ", " (map show (keys types)) ++ "\n\n"
-    ++ intercalate ndashes  (map (showType (ADTs types constr)) (keys types))
+    ++ intercalate ndashes  (map (showType (ADTs types constr par)) (keys types))
 
 
     -- ++ ndashes ++ intercalate ndashes (map showType ((keys types) types constr))
@@ -178,7 +179,7 @@ run v p s =
               putStrLn' $ ndashes ++ ndashes ++ ndashes ++ ndashes
 
 
-              res <- W.testEnv' types treeExp
+              res <- W.testEnv' types adts treeExp 
 
               case res of
                 Left err  ->  putStrLn $ show err ++ "\n " ++ err ++ "\n"

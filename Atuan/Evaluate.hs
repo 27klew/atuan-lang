@@ -301,7 +301,6 @@ evalBranch v p = case p of
       local (Data.Map.union patenv) (eval exp)
 
 
-
 matchPattern :: Val -> Pattern Pos -> EM Env
 matchPattern v p = case p of
   PatternEmptyList _-> (do
@@ -312,15 +311,16 @@ matchPattern v p = case p of
         return Data.Map.empty
         )
   PatternConsList _ pat1 pat2 -> (do
-
-        let (VADT name [v1', v2']) =  v
-        v1 <- normal v1'
-        v2 <- normal v2'
+        let (VADT name vs) = v
 
         unless (name == "Cons")
           (
             throwError $ "ConsList Pattern not matched " ++ show v
-            )
+          )
+
+        let [v1', v2'] = vs
+        v1 <- normal v1'
+        v2 <- normal v2'
 
         env1 <- matchPattern v1 pat1
         env2 <- matchPattern v2 pat2

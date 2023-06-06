@@ -22,7 +22,8 @@ data ADT a = ADT
 
 data ADTs a = ADTs
   { from_name :: Map Ident (ADT a),
-    from_constr :: Map Ident (Constr' a)
+    from_constr :: Map Ident (Constr' a),
+    from_constr_adt :: Map Ident Ident 
   }
   deriving (Show, Eq, Ord)
 
@@ -59,7 +60,7 @@ getType i = do
   adts <- get
   lift $ note ("No such type " ++ show i) (Data.Map.lookup i (from_name adts))
 
-emptyADTs = ADTs empty empty
+emptyADTs = ADTs empty empty empty
 
 isType :: Top' a -> Bool
 isType (TopType _ _) = True
@@ -148,16 +149,17 @@ checkType t = case t of
     checkType ty
     checkType ty'
 
-addConstr :: Constr' a -> SE () a
-addConstr constr = do
-  (ADTs types con) <- get
+addConstr :: Ident -> Constr' a -> SE () a
+addConstr parent constr = do
+  (ADTs types con par) <- get
   let name = identConstr constr
   let con' = insert name constr con
-  put (ADTs types con')
+  let par' = insert name parent par
+  put (ADTs types con' par')
 
 addType :: Ident -> [TVar' a] -> [Constr' a] -> SE () a
 addType name vars constr = do
-  (ADTs types con) <- get
+  (ADTs types con par) <- get
 
   let conide = map identConstr constr
 
@@ -169,9 +171,9 @@ addType name vars constr = do
 
   let types' = insert name adt types
 
-  put (ADTs types' con)
+  put (ADTs types' con par)
 
-  mapM_ addConstr constr
+  mapM_ (addConstr name) constr
 
 findDuplicate :: Eq a => [a] -> Maybe a
 findDuplicate [] = Nothing

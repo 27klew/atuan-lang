@@ -17,9 +17,12 @@ import Control.Monad (foldM, unless)
 
 import qualified Text.PrettyPrint as PP
 import Debug.Trace
-import Atuan.Abs (BNFC'Position)
+import Atuan.Abs (BNFC'Position, Constr' (..), Ident (..))
 import Control.Monad.Identity (Identity (runIdentity))
 import GHC.Debug (debugErrLn)
+import qualified Atuan.CollectTypes as CollectTypes (ADTs (..), ADT (..))
+import Control.Monad.Trans.Except (Except)
+-- import Atuan.MatchComplete (checkTotality)
 
 
 type Pos = BNFC'Position
@@ -181,18 +184,18 @@ generalize env t  =   Scheme vars t
 
 newtype TypeEnv = TypeEnv {getEnv :: Map.Map String Scheme} deriving (Show)
 
-newtype TIState = TIState { tiSupply :: Int }
+data TIState = TIState { tiSupply :: Int, adts :: CollectTypes.ADTs Pos}
 
 
 type TI a = ExceptT String (ReaderT TypeEnv (StateT TIState Identity)) a
 
-runTI :: TI a -> (Either String a, TIState)
-runTI t = do
+runTI :: TI a -> (CollectTypes.ADTs Pos) -> (Either String a, TIState)
+runTI t  adts = do
     -- do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
     --    return (res, st)
     runIdentity (runStateT (runReaderT (runExceptT t) initTIEnv) initTIState)
         where initTIEnv = emptyTypeEnv
-              initTIState = TIState{tiSupply = 0}
+              initTIState = TIState{tiSupply = 0, adts = adts}
 
 newTyVar :: String -> TI Type
 newTyVar prefix =
@@ -400,11 +403,29 @@ ti (EUnOp (pos, label) op e) = do
     checkLabelRes label (s2 `composeSubst` s1, apply s2 tres)
 
 
-ti (EMatch (pos, label) i bs) = do
+ti exp@(EMatch (pos, label) i bs) = do
     (s, t) <- ti (EVar (pos, Nothing) i)
     (s_, t_ ) <- tiMatch bs s t
-    checkLabelRes label ( s_,  t_)
+    res <- checkLabelRes label ( s_,  t_)
+    
 
+
+    adts' <- get
+    let adts_ = adts adts'
+
+    -- let c = 34 -- TODO
+    let c = map (checkTotalityMatch adts_) bs
+
+    let c' = unionsCompletion c
+    c'' <- trace (show "\n\n\ncompletions: " ++ show c ++ "\nc'" ++ show c' ++ "\n"++ "\n\n\n") $ checkCompletion adts_ c'
+
+    return $  res
+
+
+checkTotalityMatch :: CollectTypes.ADTs Pos -> PatternBranch Label -> Completion
+checkTotalityMatch adts (PatternBranch pat exp) = 
+    checkTotality adts pat
+    
 
 checkLabelRes :: Maybe Type -> (Subst, Type) -> TI (Subst, Type)
 checkLabelRes label (s, t) = do
@@ -748,16 +769,16 @@ e19 = ELetRec p_ "iter"
     )
 
 
-test' :: Exp Label -> Either String Type
-test' e =
-    let (res, _) = runTI (typeInference Map.empty e) in
+test' :: Exp Label -> CollectTypes.ADTs Pos -> Either String Type
+test' e adts =
+    let (res, _) = runTI (typeInference Map.empty e) adts in
     res
 
 
 
-test :: Exp Label -> IO ()
-test e =
-    let  (res, _) = runTI (typeInference Map.empty e) in
+test :: Exp Label-> CollectTypes.ADTs Pos -> IO ()
+test e adts =
+    let  (res, _) = runTI (typeInference Map.empty e) adts in
         case res of
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
@@ -778,18 +799,18 @@ unionEnv :: TypeEnv -> TypeEnv -> TypeEnv
 unionEnv (TypeEnv e1) (TypeEnv e2) = TypeEnv (Map.union e1 e2)
 
 
-testEnv :: TypeEnv -> Exp Label -> IO ()
-testEnv env e =
+testEnv :: TypeEnv -> CollectTypes.ADTs Pos -> Exp Label -> IO ()
+testEnv env adts e =
     let TypeEnv env' = unionEnv defaultEnv env in
-    let  (res, _) = runTI (typeInference env' e) in
+    let  (res, _) = runTI (typeInference env' e) adts in
         case res of
           Left err  ->  putStrLn $ show e ++ "\n " ++ err ++ "\n"
           Right t   ->  putStrLn $ show e ++ " :: " ++ show t ++ "\n"
 
-testEnv' :: TypeEnv -> Exp Label -> IO (Either String Type)
-testEnv' env e =
+testEnv' :: TypeEnv -> CollectTypes.ADTs Pos -> Exp Label -> IO (Either String Type)
+testEnv' env adts e =
     let TypeEnv env' = unionEnv defaultEnv env in
-    let  (res, _) = runTI (typeInference env' e) in
+    let  (res, _) = runTI (typeInference env' e) adts in
         return res
 
 
@@ -798,7 +819,7 @@ testDefault = testEnv defaultEnv
 
 
 main :: IO ()
-main = mapM_ test [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19]
+main = mapM_ (\x -> test x (CollectTypes.ADTs Map.empty Map.empty Map.empty)) [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19] 
 -- |Collecting Constraints|
 -- |main = mapM_ test' [e0, e1, e2, e3, e4, e5]|
 
@@ -908,3 +929,79 @@ prScheme (Scheme vars t)  =   PP.text "All" PP.<+>
 
 
 
+
+
+data Completion = Full | Partial String (Map.Map String [Completion]) deriving (Show, Eq)
+
+unionCompletionList :: [Completion] -> [Completion] -> [Completion]
+unionCompletionList c1 c2 = 
+    if length c1 /= length c2 then error $ "Bad union" ++ show c1 ++ "vs "  ++ show c2
+        else
+    zipWith unionCompletion c1 c2
+
+unionCompletion :: Completion -> Completion -> Completion
+unionCompletion Full _ = Full
+unionCompletion _ Full = Full
+unionCompletion p1@(Partial s1 m1) p2@(Partial s2 m2) = 
+    if (s1 /= s2) 
+        then error $ "Bad union" ++ show p1 ++ "vs "  ++ show p2
+    else
+        Partial s1 (Map.unionWith unionCompletionList m1 m2)
+
+checkTotality :: CollectTypes.ADTs a -> Pattern b -> Completion 
+checkTotality adts patt = case patt of
+  PatternEmptyList a -> Partial "List" (Map.fromList [("Empty", [])])
+  PatternConsList a pat pat' -> (
+        let c1 = checkTotality adts pat in
+        let c2 = checkTotality adts pat' in
+            Partial "List" (Map.fromList [("Cons", [c1, c2])])
+        )
+  PatternConstr a s pats -> (
+        let pats' = map (checkTotality adts) pats in
+        -- let i = (case Map.lookup (Ident s) (CollectTypes.from_constr adts) of
+        --             Nothing -> error $ "Constructor not found " ++ s ++ "\n"
+        --             Just (DataConstructor _ (Ident i) _) -> i
+        --         )
+        -- in  
+        let (Ident i) = getADT adts (Ident s) in
+
+        Partial i (Map.fromList [(s, pats')])
+    )
+  PatternIdent a s -> Full
+
+
+checkCompletionMap :: CollectTypes.ADTs a -> (String ,[Completion]) -> TI ()
+checkCompletionMap adts (constr, cs) = do
+    mapM_ (checkCompletion adts) cs 
+    `catchError`
+    (\err -> throwError $ " (" ++ constr ++ "): " ++ err)
+    -- return () -- TODO
+
+checkCompletion :: CollectTypes.ADTs a -> Completion -> TI ()
+checkCompletion adts Full = return ()
+checkCompletion adts (Partial s m) = do
+    mapM_ (checkCompletionMap adts) (Map.toList m)
+        `catchError` 
+            (\err -> throwError $ "In " ++ s  ++ ": " ++ err)
+    -- let Just (DataConstructor _ (Ident cons_i) _) = Map.lookup (Ident s) (CollectTypes.from_constr adts) 
+    let Just adt = Map.lookup (Ident s) (CollectTypes.from_name adts)
+    let csss = map (\(Ident i) -> i) (CollectTypes.constrs adt)
+
+    let all_c = Set.fromList csss
+    let present_c = Set.fromList (Map.keys m)
+    let missing_c = Set.difference all_c present_c
+
+    unless (null missing_c)
+        (throwError $ "unchecked variants: " ++ show missing_c)
+
+
+getADT :: CollectTypes.ADTs a -> Ident -> Ident
+getADT adts cons = 
+    let Just adt = Map.lookup cons (CollectTypes.from_constr_adt adts) in
+        adt
+
+
+unionsCompletion :: [Completion] -> Completion
+unionsCompletion [] = error "Illegal use of unionsCompletion"
+unionsCompletion ([c]) = c 
+unionsCompletion (c:cs) = unionCompletion c (unionsCompletion cs) 
