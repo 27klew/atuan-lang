@@ -189,7 +189,7 @@ data TIState = TIState { tiSupply :: Int, adts :: CollectTypes.ADTs Pos}
 
 type TI a = ExceptT String (ReaderT TypeEnv (StateT TIState Identity)) a
 
-runTI :: TI a -> (CollectTypes.ADTs Pos) -> (Either String a, TIState)
+runTI :: TI a -> CollectTypes.ADTs Pos -> (Either String a, TIState)
 runTI t  adts = do
     -- do (res, st) <- runStateT (runReaderT (runExceptT t) initTIEnv) initTIState
     --    return (res, st)
@@ -279,12 +279,11 @@ instance Types a => Types (Maybe a) where
     Nothing -> Nothing
     Just a -> Just $ apply sub a
 
-instantiateAnn :: Type -> TI (Type)
+instantiateAnn :: Type -> TI Type
 instantiateAnn ty = do
     let vars = freeVars ty
-    let s = Scheme (Set.toList vars) ty 
-    ty' <- instantiate s 
-    return ty'
+    let s = Scheme (Set.toList vars) ty
+    instantiate s
 
 
 
@@ -302,11 +301,11 @@ isVar (TVar _ ) = True
 isVar _ = False
 
 unique :: Ord a => [a] -> Bool
-unique xs = (length (Set.fromList xs) == length xs)
+unique xs = length (Set.fromList xs) == length xs
 
 checkLabel :: Maybe Type -> Type -> TI Subst
 checkLabel Nothing _ = return nullSubst
-checkLabel (Just label') ty = do 
+checkLabel (Just label') ty = do
     label <- instantiateAnn label'
     sub <- mgu label ty
     let vals = Map.elems sub
@@ -322,7 +321,7 @@ ti (EVar (pos, label) n) = do
        Nothing     ->  throwError $ "unbound variable: " ++ n
        Just sigma  ->  do  t <- instantiate sigma
                            checkLabelRes label (nullSubst, t)
-ti (ELit (pos, label) l) = do 
+ti (ELit (pos, label) l) = do
     res <- tiLit l
     checkLabelRes label res
 ti (EAbs (pos, label) n e) = do
@@ -376,7 +375,7 @@ ti (EIf (pos, label) cond e1 e2) = do
     (s2, t2) <- local (apply s1) (ti e2)
     s3 <- mgu (apply s2 t1) (apply s2 t2)
 
-    checkLabelRes label 
+    checkLabelRes label
         (s3 `composeSubst` s2 `composeSubst` s1 `composeSubst` sc', apply s3 t2)
 
 
@@ -390,7 +389,7 @@ ti (EBinOp (pos, label) e1 op e2) = do
 
     let tr = opBinRes op
 
-    checkLabelRes label 
+    checkLabelRes label
         (s4 `composeSubst` s3 `composeSubst` s2 `composeSubst` s1, tr)
 
 
@@ -407,7 +406,7 @@ ti exp@(EMatch (pos, label) i bs) = do
     (s, t) <- ti (EVar (pos, Nothing) i)
     (s_, t_ ) <- tiMatch bs s t
     res <- checkLabelRes label ( s_,  t_)
-    
+
 
 
     adts' <- get
@@ -422,14 +421,14 @@ ti exp@(EMatch (pos, label) i bs) = do
 
 
 checkTotalityMatch :: CollectTypes.ADTs Pos -> PatternBranch Label -> Completion
-checkTotalityMatch adts (PatternBranch pat exp) = 
+checkTotalityMatch adts (PatternBranch pat exp) =
     checkTotality adts pat
-    
+
 
 checkLabelRes :: Maybe Type -> (Subst, Type) -> TI (Subst, Type)
 checkLabelRes label (s, t) = do
     sl <- checkLabel label t
-    return (sl `composeSubst` s, apply sl t) 
+    return (sl `composeSubst` s, apply sl t)
 
 
 tiMatch :: [PatternBranch Label] -> Subst -> Type -> TI (Subst, Type)
@@ -489,7 +488,7 @@ tiPattern :: Pattern Label ->  TI (Subst, Type, TypeEnv)
 tiPattern pat = case pat of
   PatternEmptyList pos -> do
         tv <- newTyVar "a"
-        return (nullSubst, (ADT "List" [tv]), nullTypeEnv)
+        return (nullSubst, ADT "List" [tv], nullTypeEnv)
 
   PatternConsList pos pat' pat2 ->  do
     tv <- newTyVar "a"
@@ -504,18 +503,14 @@ tiPattern pat = case pat of
     s3 <- mgu (apply s2' (ADT "List" [t1])) (apply s2' tv')
     s3' <- mgu (apply s3 t2) (apply s3 tv')
 
-    unless (null $ Map.intersection (getEnv tenv1) (getEnv tenv2))
-        (throwError $ "Multiple declarations of " )
-
-    -- throwError $ "PatternCons List tenv :" ++ (show tenv2)
+    let inter = Map.intersection (getEnv tenv1) (getEnv tenv2)
+    unless (null inter)
+        (throwError $ "Multiple declarations of " ++ show inter)
 
     let s = s3' `composeSubst` s3 `composeSubst` s2' `composeSubst` s2 `composeSubst` s1
 
     return (s, apply s tv', unionEnv (apply s tenv1) (apply s tenv2))
 
-    -- s3 <- mgu (apply s2 (ADT "List" [t2])) (apply s2 t1)
-
-    -- return (s3 `composeSubst` s2 `composeSubst` s1, apply s3 (ADT "List" [t2]))
 
   PatternConstr pos con pats -> do
     (s, t) <- ti (EVar pos con)
@@ -539,7 +534,7 @@ tiPattern pat = case pat of
 
     tv <- newTyVar "a"
 
-    let tp = foldr (TFun) tv tys'
+    let tp = foldr TFun tv tys'
 
 
     s2 <- mgu tp t'
@@ -557,7 +552,7 @@ tiPattern pat = case pat of
 unionEnvDisjoint :: TypeEnv -> TypeEnv -> TI TypeEnv
 unionEnvDisjoint env1 env2 = do
     let inter = intersectEnv env1 env2
-    unless (isNullEnv $ inter)
+    unless (isNullEnv inter)
         (throwError $ "Duplicated declarations" ++ show inter)
     return $ unionEnv env1 env2
 
@@ -709,20 +704,7 @@ e18 = ELetRec p_ "double" (EAbs p_ "f"
         )
     )
     (
-        -- EApp 
-            (
-                (EVar p_ "double")
-                -- EApp (EVar "double")
-                -- (
-                --     EAbs "c"
-                --     (
-                --         EVar "c"
-                --     )
-                -- )
-            )
-
-
-            -- (ELit $ LInt 5)
+            EVar p_ "double"
     )
 
 
@@ -791,7 +773,7 @@ testDefault = testEnv defaultEnv
 
 
 main :: IO ()
-main = mapM_ (\x -> test x (CollectTypes.ADTs Map.empty Map.empty Map.empty)) [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19] 
+main = mapM_ (\x -> test x (CollectTypes.ADTs Map.empty Map.empty Map.empty)) [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19]
 -- |Collecting Constraints|
 -- |main = mapM_ test' [e0, e1, e2, e3, e4, e5]|
 
@@ -906,7 +888,7 @@ prScheme (Scheme vars t)  =   PP.text "All" PP.<+>
 data Completion = Full | Partial String (Map.Map String [Completion]) deriving (Show, Eq)
 
 unionCompletionList :: [Completion] -> [Completion] -> [Completion]
-unionCompletionList c1 c2 = 
+unionCompletionList c1 c2 =
     if length c1 /= length c2 then error $ "Bad union" ++ show c1 ++ "vs "  ++ show c2
         else
     zipWith unionCompletion c1 c2
@@ -914,13 +896,13 @@ unionCompletionList c1 c2 =
 unionCompletion :: Completion -> Completion -> Completion
 unionCompletion Full _ = Full
 unionCompletion _ Full = Full
-unionCompletion p1@(Partial s1 m1) p2@(Partial s2 m2) = 
-    if (s1 /= s2) 
+unionCompletion p1@(Partial s1 m1) p2@(Partial s2 m2) =
+    if (s1 /= s2)
         then error $ "Bad union" ++ show p1 ++ "vs "  ++ show p2
     else
         Partial s1 (Map.unionWith unionCompletionList m1 m2)
 
-checkTotality :: CollectTypes.ADTs a -> Pattern b -> Completion 
+checkTotality :: CollectTypes.ADTs a -> Pattern b -> Completion
 checkTotality adts patt = case patt of
   PatternEmptyList a -> Partial "List" (Map.fromList [("Empty", [])])
   PatternConsList a pat pat' -> (
@@ -944,7 +926,7 @@ checkTotality adts patt = case patt of
 
 checkCompletionMap :: CollectTypes.ADTs a -> (String ,[Completion]) -> TI ()
 checkCompletionMap adts (constr, cs) = do
-    mapM_ (checkCompletion adts) cs 
+    mapM_ (checkCompletion adts) cs
     `catchError`
     (\err -> throwError $ " (" ++ constr ++ "): " ++ err)
     -- return () -- TODO
@@ -953,7 +935,7 @@ checkCompletion :: CollectTypes.ADTs a -> Completion -> TI ()
 checkCompletion adts Full = return ()
 checkCompletion adts (Partial s m) = do
     mapM_ (checkCompletionMap adts) (Map.toList m)
-        `catchError` 
+        `catchError`
             (\err -> throwError $ "In " ++ s  ++ ": " ++ err)
     -- let Just (DataConstructor _ (Ident cons_i) _) = Map.lookup (Ident s) (CollectTypes.from_constr adts) 
     let Just adt = Map.lookup (Ident s) (CollectTypes.from_name adts)
@@ -968,12 +950,12 @@ checkCompletion adts (Partial s m) = do
 
 
 getADT :: CollectTypes.ADTs a -> Ident -> Ident
-getADT adts cons = 
+getADT adts cons =
     let Just adt = Map.lookup cons (CollectTypes.from_constr_adt adts) in
         adt
 
 
 unionsCompletion :: [Completion] -> Completion
 unionsCompletion [] = error "Illegal use of unionsCompletion"
-unionsCompletion ([c]) = c 
-unionsCompletion (c:cs) = unionCompletion c (unionsCompletion cs) 
+unionsCompletion ([c]) = c
+unionsCompletion (c:cs) = unionCompletion c (unionsCompletion cs)
