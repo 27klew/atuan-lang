@@ -1,4 +1,6 @@
 
+-- Currently it is not possible to 
+-- get the value out of such a type.
 
 data A a where
 	AA :: a -> (A a)

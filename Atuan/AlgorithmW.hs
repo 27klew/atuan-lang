@@ -22,6 +22,8 @@ import Control.Monad.Identity (Identity (runIdentity))
 import GHC.Debug (debugErrLn)
 import qualified Atuan.CollectTypes as CollectTypes (ADTs (..), ADT (..))
 import Control.Monad.Trans.Except (Except)
+import Data.Maybe (isNothing, catMaybes)
+import Maybes (isJust)
 -- import Atuan.MatchComplete (checkTotality)
 
 
@@ -308,8 +310,13 @@ checkLabel Nothing _ = return nullSubst
 checkLabel (Just label') ty = do
     label <- instantiateAnn label'
     sub <- mgu label ty
-    let vals = Map.elems sub
-    unless (all isVar vals && unique vals)
+    
+    let vars = freeVars label
+    let vals' = [Map.lookup k sub | k <- Set.toList vars]
+    let vals'' = catMaybes vals'
+
+    -- let vals = Map.elems sub
+    unless (all isVar vals'' && unique vals'')
         (throwError $ "Annotation is too general " ++ show label' ++ " vs " ++ show ty)
     return sub
 
