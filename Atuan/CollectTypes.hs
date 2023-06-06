@@ -1,4 +1,4 @@
-module Atuan.CollectTypes (collect, ADTs (..), isType, ADT (..), identToVar) where
+module Atuan.CollectTypes (collect, ADTs (..), isType, ADT (..), identToVar') where
 
 import Atuan.Abs (Constr' (..), Ident (..), Program' (..), TVar, TVar' (..), Top' (..), Type' (TypeApp, TypeBool, TypeFunc, TypeIdent, TypeInt, TypeList, TypeVar), TypeAnnot' (TypeAnnotation), TypeDef' (..))
 import Control.Monad.Except (Except, ExceptT, MonadError (throwError), runExceptT, unless, when)
@@ -89,7 +89,7 @@ builtInList dummy =
 collectType :: Show a => Atuan.Abs.Top' a -> SE () a
 collectType (TopDef _ _) = return ()
 collectType (TopType pos (Atuan.Abs.TypeDefinition _ ident vars constr)) = do
-  checkTypeName ident
+  (checkTypeName ident)
   mapM_ checkTypeVar vars
   let vars' = map varName vars
   let v = findDuplicate vars'
@@ -195,6 +195,30 @@ checkTypeName ident = do
           ++ show ident
     )
 
+checkTypeName' :: Ident -> Either String ()
+checkTypeName' ident = do
+  unless
+    (isUpperIdent ident)
+    ( throwError $
+        "Error: type names should begin with capital letters. "
+          ++ "offending name:"
+          ++ show ident
+    )
+
+
+checkTypeVar' :: Show a =>  TVar' a -> Either String ()
+checkTypeVar' (TypeVariable pos ident) = do
+  unless
+    (isLowerIdent ident)
+    ( throwError $
+        "Error: type variables should begin with small letter."
+          ++ "offending name: "
+          ++ show ident
+          ++ "at: "
+          ++ show pos
+    )
+
+
 checkTypeVar :: Show a => TVar' a -> SE () a
 checkTypeVar (TypeVariable pos ident) = do
   unless
@@ -254,6 +278,30 @@ checkDataConstr id vars (DataConstructor pos ident (TypeAnnotation _ ty)) = do
       "GADTs with variables not present in result re not supported. offending varibles: "
           ++ show (tvs `Data.Set.difference` tvr)
           )
+
+
+identToVar' :: Show a => Type' a -> Either String (Type' a)
+identToVar' x = case x of
+  TypeInt a -> return $ TypeInt a
+  TypeBool a -> return $ TypeBool a
+  TypeList a ty -> do
+    ty' <- identToVar' ty
+    return $ TypeList a ty'
+  TypeApp a id tys -> do
+    checkTypeName' id
+    tys' <- mapM identToVar' tys
+    return $ TypeApp a id tys'
+  TypeFunc a ty1 ty2 -> do
+    ty1' <- identToVar' ty1
+    ty2' <- identToVar' ty2
+    return $ TypeFunc a ty1' ty2'
+  TypeIdent a id ->
+    if isLowerIdent id
+      then return $ TypeVar a id
+      else return $ TypeIdent a id
+  TypeVar a id -> do
+    checkTypeVar' (TypeVariable a id)
+    return $ TypeVar a id
 
 
 --  TODO użyć tego żeby rozpoznać gdzie w annotacjach są zmienne

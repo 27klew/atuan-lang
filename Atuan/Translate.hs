@@ -9,7 +9,7 @@ import Atuan.AlgorithmW (Exp(..), Lit(..), OpUn (OpNeg, OpNot), OpBin (..), MulO
 import qualified Atuan.Abs as A (Program'(..), Top' (TopDef, TopType), Ident (Ident), Def' (DefinitionT), Expr' (..), BoolLiteral (BoolLiteral), Lambda' (..), Val' (..), MulOp, MulOp' (Times, Div, Mod), RelOp' (..), AddOp', OTIdent' (..), TIdent' (..), AddOp'(..), Constr', TypeAnnot' (..), Type' (..), PatternBranch', Pattern'(..), ListPattern' (..), Field')
 import Atuan.Abs (BoolLiteral, MulOp, Constr'(..), PatternBranch' (..), Field' (..), HasPosition(..), BNFC'Position, OTIdent' (..), Ident, TIdent' (..), TypeAnnot' (..), Type' (..), OptTypeAnnot, OptTypeAnnot' (..))
 
-import Atuan.CollectTypes (ADTs(..), identToVar)
+import Atuan.CollectTypes (ADTs(..), identToVar')
 import qualified Data.Map (toList, empty, fromList)
 import Data.Char (isLower)
 
@@ -28,34 +28,49 @@ iname (A.SkippedTypeIdentifier a (A.Ident n)) = n
 
 
 
-makeType' :: Type' a -> Type
-makeType' ty = 
-  case  ty of
-  TypeInt a -> TInt
-  TypeBool a -> TBool
-  TypeList a ty' -> ADT "List" [makeType' ty']
-  TypeIdent a id -> ADT (itname id) []
-  TypeApp a id tys -> ADT (itname id) (map makeType' tys)
-  TypeVar a id -> TVar (itname id)
-  TypeFunc a ty' ty_a -> TFun (makeType' ty') (makeType' ty_a)
-
-makeType :: TypeAnnot' a -> Type
+makeType' :: Show a => Type' a -> Expected Type
+makeType' ty' = do
+  ty <- identToVar' ty'
+  case ty of
+    TypeInt a -> return TInt
+    TypeBool a -> return TBool
+    TypeList a ty' -> (do 
+              ty'' <- makeType' ty'
+              return $ ADT "List" [ty'']
+            )
+    TypeIdent a id -> return $ ADT (itname id) []
+    TypeApp a id tys -> (do
+                tys' <- mapM makeType' tys
+                return $ ADT (itname id) (tys')
+             
+             )
+    TypeVar a id -> return $ TVar (itname id)
+    TypeFunc a ty' ty_a -> (do 
+          ty'' <- makeType' ty'
+          ty_a' <- makeType' ty_a
+          return $ TFun (ty'') (ty_a')
+      )
+makeType :: Show a => TypeAnnot' a -> Expected Type
 makeType (TypeAnnotation a ty) = makeType' ty
 
-makeLabelT :: TIdent' a -> (Ident, Maybe Type)
-makeLabelT (TypedIdentifier a id ta) =
-  (id, Just $ makeType ta)
+makeLabelT :: Show a => TIdent' a -> Expected (Ident, Maybe Type)
+makeLabelT (TypedIdentifier a id ta) = do
+  ta' <- makeType ta
+  return (id, Just ta')
 
 
-makeLabel :: OTIdent' a -> (Ident, Maybe Type)
+makeLabel :: Show a => OTIdent' a -> Expected (Ident, Maybe Type)
 makeLabel oti = case oti of
   OptionallyTypedIdentifier a ti -> makeLabelT ti
-  SkippedTypeIdentifier a id -> (id, Nothing)
+  SkippedTypeIdentifier a id -> return (id, Nothing)
 
-makeLabel' :: OptTypeAnnot' a -> Maybe Type
+makeLabel' :: Show a => OptTypeAnnot' a -> Expected (Maybe Type)
 makeLabel' opt = case opt of
-  OptionalTypeAnnotation a ta -> Just $ makeType ta
-  SkippedTypeAnnotation a -> Nothing
+  OptionalTypeAnnotation a ta -> (do
+      ta' <- makeType ta
+      return (Just $ ta')
+    )
+  SkippedTypeAnnotation a -> return Nothing
 
 
 makeFunType :: [Maybe Type] -> Maybe Type
@@ -92,10 +107,11 @@ setTypeLabel exp t = case exp of
 translateDef :: A.Def' Pos -> Expected (Exp Label, String)
 translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     exp' <- translate exp
-    let (ids'', tys) = unzip $ map makeLabel ids
+    labels <- mapM makeLabel ids
+    let (ids'', tys) = unzip $ labels
     let ids' = map iname ids
 
-    let tr = makeLabel' t
+    tr <- makeLabel' t
 
     let ty = makeFunType (tys ++ [tr])
 
