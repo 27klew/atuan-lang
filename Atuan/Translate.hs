@@ -120,7 +120,7 @@ translateDef (A.DefinitionT a (A.Ident i) ids t exp) = do
     if map itname ids'' /= ids' then
       Left "Incorrect names"
     else  case ids' of
-          [] -> return $ trace ("translateDef: " ++ show exp') (setTypeLabel exp' ty, i)
+          [] -> return (setTypeLabel exp' ty, i)
           iss -> return (setTypeLabel app ty, i)
             where app = foldr (EAbs (a, Nothing)) exp' iss
 

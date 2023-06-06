@@ -412,14 +412,13 @@ ti exp@(EMatch (pos, label) i bs) = do
 
     adts' <- get
     let adts_ = adts adts'
-
-    -- let c = 34 -- TODO
     let c = map (checkTotalityMatch adts_) bs
-
     let c' = unionsCompletion c
-    c'' <- trace (show "\n\n\ncompletions: " ++ show c ++ "\nc'" ++ show c' ++ "\n"++ "\n\n\n") $ checkCompletion adts_ c'
 
-    return $  res
+    -- trace (show "\n\n\ncompletions: " ++ show c ++ "\nc'" ++ show c' ++ "\n"++ "\n\n\n") $
+    c'' <- checkCompletion adts_ c'
+
+    return res
 
 
 checkTotalityMatch :: CollectTypes.ADTs Pos -> PatternBranch Label -> Completion
@@ -439,30 +438,14 @@ tiMatch [] s t = do
     return (s, tv)
 
 tiMatch (b:bs) s t = do
-    (sb, tb) <- trace ("\ntiMatch \nbs lenght: " ++ show (length bs)
-                        ++ " \nt: " ++show t ++ "\ns: " ++ show s
-                        ++ "\n\n"
-                        ) (tiBranch t b)
+    (sb, tb) <- tiBranch t b
 
-    let s' = trace ("\n\n" ++ "\nsb: " ++ show sb
-                        ++ "\ntb: " ++ show tb ++ "\n")
-                (sb `composeSubst` s)
+    let s' = sb `composeSubst` s
 
     (sm, tm) <- tiMatch bs s' (apply s' t)
 
-    trace (
-                -- "\ntiMatch "
-                -- ++ "\nbs lenght: " ++ show (length bs) 
-                -- ++ " \nt: " ++show t ++ "\ns: " ++ show s ++ "\nsb: " ++ show sb
-                ""
-                -- ++ "\ntb: " ++ show tb ++ "\ns': "++ show s' 
-                ++ "\nsm: " ++ show sm
-                ++ "\ntm: " ++ show tm  ++ "\n"
-                )
-        (do
-            smgu <- mgu tm tb
-            return (smgu `composeSubst` sm `composeSubst` s', apply smgu tb)
-        )
+    smgu <- mgu tm tb
+    return (smgu `composeSubst` sm `composeSubst` s', apply smgu tb)
 
 
 nullTypeEnv = TypeEnv Map.empty
@@ -475,19 +458,8 @@ unifTypes (s1, t1) (s2, t2) = do
     let s2' = sm `composeSubst` s2
 
     let s3 = s1' `composeSubst` s2'
-    -- s3' <- mgu (apply s3 t1) (apply s3 t2)
 
-    -- let s = s3' `composeSubst` s3
-
-    -- trace ("Unif types:" ++ "\ns3' " ++ show s3' ++ "\nt1: "++show t1 ++ "\nt2" ++ show t2 ++ "\n\n")
-    --     return (s, apply s t1)
-
-
-
-    trace ("\n\nUnif types:\n s1: " ++ show s1 ++ "\nst1: " ++ show t1 ++ "\ns2: " ++show s2 ++ "\nt2" ++ show t2
-            ++ "\nsm: " ++ show sm ++ "\ns1': " ++ show s1' ++ "\ns2': " ++ show s2' ++ "\ns3: " ++ show s3 ++"\n\n"
-            )
-        return (s3, apply s3 t1)
+    return (s3, apply s3 t1)
 
 
 intersectEnv :: TypeEnv -> TypeEnv -> TypeEnv
